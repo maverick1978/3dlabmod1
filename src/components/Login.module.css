@@ -1,0 +1,80 @@
+/* Contenedor principal */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #f0f2f5;
+}
+
+.formWrapper {
+    max-width: 400px;
+    width: 100%;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Formulario */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.formGroup {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: #fff;
+}
+
+.formGroup input {
+    border: none;
+    outline: none;
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+.icon {
+    color: #888;
+    /* Color gris */
+    margin-right: 0.5rem;
+    font-size: 1.2rem;
+}
+
+/* Botones */
+.button {
+    padding: 0.8rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.button:hover {
+    background-color: #0056b3;
+}
+
+/* Redirección */
+.redirect {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.redirect a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.redirect a:hover {
+    text-decoration: underline;
+}
