@@ -31,6 +31,25 @@ const db = new sqlite3.Database("./users.db", (err) => {
 
 // Crear tablas si no existen
 const createTables = () => {
+  // Crear la tabla de tareas si no existe
+  db.run(
+    `
+  CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL
+  )
+`,
+    (err) => {
+      if (err) {
+        console.error("Error al crear la tabla de tareas:", err.message);
+      } else {
+        console.log('Tabla "tasks" creada o ya existente.');
+      }
+    }
+  );
+
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -248,6 +267,62 @@ app.post("/api/students/:id/recommendation", (req, res) => {
 
   console.log(`Recomendación para estudiante ${id}:`, recommendation);
   res.json({ message: "Recomendación enviada." });
+});
+
+// Obtener todas las tareas
+app.get("/api/tasks", (req, res) => {
+  db.all("SELECT * FROM tasks", [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: "Error al obtener tareas" });
+    } else {
+      res.json(rows);
+    }
+  });
+});
+
+// Crear una nueva tarea
+app.post("/api/tasks", (req, res) => {
+  const { title, description, status } = req.body;
+  db.run(
+    "INSERT INTO tasks (title, description, status) VALUES (?, ?, ?)",
+    [title, description, status],
+    function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al crear la tarea" });
+      } else {
+        res.json({ id: this.lastID, title, description, status });
+      }
+    }
+  );
+});
+
+// Actualizar una tarea
+app.put("/api/tasks/:id", (req, res) => {
+  const { id } = req.params;
+  const { title, description, status } = req.body;
+  db.run(
+    "UPDATE tasks SET title = ?, description = ?, status = ? WHERE id = ?",
+    [title, description, status, id],
+    function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al actualizar la tarea" });
+      } else {
+        res.json({ id, title, description, status });
+      }
+    }
+  );
+});
+
+// Eliminar una tarea
+app.delete("/api/tasks/:id", (req, res) => {
+  const { id } = req.params;
+  db.run("DELETE FROM tasks WHERE id = ?", [id], function (err) {
+    if (err) {
+      res.status(500).json({ error: "Error al eliminar la tarea" });
+    } else {
+      res.json({ message: "Tarea eliminada correctamente" });
+    }
+  });
 });
 
 // Iniciar el servidor

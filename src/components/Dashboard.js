@@ -7,6 +7,8 @@ import Profile from "./dashboard/Profile";
 import Settings from "./dashboard/Settings";
 import Notifications from "./dashboard/Notifications";
 import StudentManagement from "./dashboard/StudentManagement";
+import WorkArea from "./dashboard/WorkArea";
+
 function Dashboard() {
   return (
     <div className={styles.container}>
@@ -29,6 +31,9 @@ function Dashboard() {
             <Link to="/dashboard/StudentsManagement">Estudiantes</Link>
           </li>
           <li>
+            <Link to="/dashboard/work-area">Área de Trabajo</Link>
+          </li>
+          <li>
             <Link to="/">Cerrar Sesión</Link>
           </li>
         </ul>
@@ -41,6 +46,7 @@ function Dashboard() {
           <Route path="settings" element={<Settings />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="StudentsManagement" element={<StudentManagement />} />
+          <Route path="work-area" element={<WorkArea />} />
         </Routes>
       </div>
     </div>
