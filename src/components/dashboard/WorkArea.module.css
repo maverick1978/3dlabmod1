@@ -142,3 +142,23 @@ textarea {
 .deleteButton:hover {
     background-color: #b02a37;
 }
+
+/* Filtros */
+.filter {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.filter label {
+    font-weight: bold;
+    color: #555;
+}
+
+.filter select {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}

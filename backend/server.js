@@ -269,9 +269,14 @@ app.post("/api/students/:id/recommendation", (req, res) => {
   res.json({ message: "Recomendación enviada." });
 });
 
-// Obtener todas las tareas
+// Obtener tareas con filtro por estado
 app.get("/api/tasks", (req, res) => {
-  db.all("SELECT * FROM tasks", [], (err, rows) => {
+  const { status } = req.query; // Recibe el estado como parámetro
+  const query = status
+    ? "SELECT * FROM tasks WHERE status = ?"
+    : "SELECT * FROM tasks";
+
+  db.all(query, status ? [status] : [], (err, rows) => {
     if (err) {
       res.status(500).json({ error: "Error al obtener tareas" });
     } else {

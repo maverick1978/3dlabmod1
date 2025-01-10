@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styles from "./WorkArea.module.css";
 
 function WorkArea() {
@@ -9,12 +9,18 @@ function WorkArea() {
     status: "Pendiente",
   });
   const [editingTask, setEditingTask] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const descriptionRef = useRef(null); // Referencia al campo de descripción
 
   // Cargar tareas desde el backend
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/tasks");
+        const response = await fetch(
+          `http://localhost:5000/api/tasks${
+            filter !== "all" ? `?status=${filter}` : ""
+          }`
+        );
         const data = await response.json();
         setTasks(data);
       } catch (error) {
@@ -23,18 +29,21 @@ function WorkArea() {
     };
 
     fetchTasks();
-  }, []);
+  }, [filter]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFilterChange = (e) => {
+    setFilter(e.target.value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (editingTask) {
-      // Actualizar tarea existente
       try {
         const response = await fetch(
           `http://localhost:5000/api/tasks/${editingTask.id}`,
@@ -53,7 +62,6 @@ function WorkArea() {
         console.error("Error al actualizar la tarea:", error);
       }
     } else {
-      // Crear nueva tarea
       try {
         const response = await fetch("http://localhost:5000/api/tasks", {
           method: "POST",
@@ -73,6 +81,12 @@ function WorkArea() {
   const handleEdit = (task) => {
     setForm(task);
     setEditingTask(task);
+
+    // Seleccionar automáticamente el texto del campo de descripción
+    setTimeout(() => {
+      descriptionRef.current?.focus();
+      descriptionRef.current?.select();
+    }, 0);
   };
 
   const handleDelete = async (id) => {
@@ -90,6 +104,18 @@ function WorkArea() {
     <div className={styles.container}>
       <h2>Área de Trabajo</h2>
 
+      {/* Menú de Filtros */}
+      <div className={styles.filter}>
+        <label>Filtrar por estado:</label>
+        <select value={filter} onChange={handleFilterChange}>
+          <option value="all">Todos</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="En Progreso">En Progreso</option>
+          <option value="Completado">Completado</option>
+        </select>
+      </div>
+
+      {/* Formulario */}
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.formGroup}>
           <label>Título</label>
@@ -107,6 +133,7 @@ function WorkArea() {
             name="description"
             value={form.description}
             onChange={handleChange}
+            ref={descriptionRef} // Referencia al campo de descripción
             required
           ></textarea>
         </div>
@@ -123,6 +150,7 @@ function WorkArea() {
         </button>
       </form>
 
+      {/* Lista de Tareas */}
       <div className={styles.taskList}>
         {tasks.map((task) => (
           <div key={task.id} className={styles.task}>
