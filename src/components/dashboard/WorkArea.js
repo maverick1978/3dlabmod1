@@ -7,6 +7,7 @@ function WorkArea() {
     title: "",
     description: "",
     status: "Pendiente",
+    date: "",
   });
   const [editingTask, setEditingTask] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -75,7 +76,7 @@ function WorkArea() {
       }
     }
 
-    setForm({ title: "", description: "", status: "Pendiente" });
+    setForm({ title: "", description: "", status: "Pendiente", date: "" });
   };
 
   const handleEdit = (task) => {
