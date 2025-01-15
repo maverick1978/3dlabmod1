@@ -37,7 +37,11 @@ const createTables = () => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
+<<<<<<< HEAD
     status TEXT NOT NULL,
+=======
+    status TEXT NOT NULL DEFAULT 'Pendiente',
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
     date TEXT DEFAULT ''
   )
 `,
@@ -288,14 +292,34 @@ app.get("/api/tasks", (req, res) => {
 // Crear una nueva tarea
 app.post("/api/tasks", (req, res) => {
   const { title, description, status, date } = req.body;
+<<<<<<< HEAD
   db.run(
     "INSERT INTO tasks (title, description, status, date) VALUES (?, ?, ?, ?)",
     [title, description, status, date],
+=======
+
+  // Normalizar la fecha para eliminar problemas de zonas horarias
+  const normalizedDate = new Date(date).toISOString().split("T")[0];
+
+  db.run(
+    "INSERT INTO tasks (title, description, status, date) VALUES (?, ?, ?, ?)",
+    [title, description, status, normalizedDate],
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
     function (err) {
       if (err) {
         res.status(500).json({ error: "Error al crear la tarea" });
       } else {
+<<<<<<< HEAD
         res.json({ id: this.lastID, title, description, status, date });
+=======
+        res.json({
+          id: this.lastID,
+          title,
+          description,
+          status,
+          date: normalizedDate,
+        });
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
       }
     }
   );
@@ -305,14 +329,28 @@ app.post("/api/tasks", (req, res) => {
 app.put("/api/tasks/:id", (req, res) => {
   const { id } = req.params;
   const { title, description, status, date } = req.body;
+<<<<<<< HEAD
   db.run(
     "UPDATE tasks SET title = ?, description = ?, status = ?, date=?,  WHERE id = ?",
     [title, description, status, date, id],
+=======
+
+  // Normalizar la fecha
+  const normalizedDate = new Date(date).toISOString().split("T")[0];
+
+  db.run(
+    "UPDATE tasks SET title = ?, description = ?, status = ?, date = ? WHERE id = ?",
+    [title, description, status, normalizedDate, id],
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
     function (err) {
       if (err) {
         res.status(500).json({ error: "Error al actualizar la tarea" });
       } else {
+<<<<<<< HEAD
         res.json({ id, title, description, status, date });
+=======
+        res.json({ id, title, description, status, date: normalizedDate });
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
       }
     }
   );

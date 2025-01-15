@@ -19,16 +19,32 @@ h2 {
     margin-bottom: 2rem;
 }
 
+<<<<<<< HEAD
+=======
+/* Indicador de tareas en el calendario */
+.taskIndicator {
+    width: 6px;
+    height: 6px;
+    background-color: #007bff;
+    border-radius: 50%;
+    margin: 0 auto;
+    margin-top: 5px;
+}
+
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
 /* Lista de tareas */
 .taskList {
     margin-top: 1.5rem;
 }
 
+<<<<<<< HEAD
 .taskList h3 {
     color: #333;
     margin-bottom: 1rem;
 }
 
+=======
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
 .task {
     background-color: #f8f9fa;
     padding: 1rem;
@@ -42,11 +58,14 @@ h2 {
     color: #007bff;
 }
 
+<<<<<<< HEAD
 .task p {
     margin: 0;
     color: #555;
 }
 
+=======
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
 .status {
     display: inline-block;
     margin-top: 0.5rem;
@@ -69,4 +88,172 @@ h2 {
 .status.completado {
     background-color: #28a745;
     color: white;
+<<<<<<< HEAD
+=======
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modalContent {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+}
+
+.formGroup {
+    margin-bottom: 1rem;
+}
+
+.formGroup label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+textarea, input, select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 1rem;
+}
+
+.button:hover {
+    background-color: #0056b3;
+}
+
+.cancelButton {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.cancelButton:hover {
+    background-color: #b02a37;
+}
+
+/* Botones de acción */
+.actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.editButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.editButton:hover {
+    background-color: #0056b3;
+}
+
+.deleteButton {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.deleteButton:hover {
+    background-color: #b02a37;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modalContent {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+}
+
+.formGroup {
+    margin-bottom: 1rem;
+}
+
+.formGroup label {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+textarea, input, select {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 1rem;
+}
+
+.button:hover {
+    background-color: #0056b3;
+}
+
+.cancelButton {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.cancelButton:hover {
+    background-color: #b02a37;
+>>>>>>> a412e1a5823846b88e59dabea2af5ef8911b0ebc
 }

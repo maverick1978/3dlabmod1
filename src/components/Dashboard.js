@@ -1,7 +1,6 @@
 import React from "react";
 import { Link, Routes, Route } from "react-router-dom";
 import styles from "./Dashboard.module.css";
-
 import Home from "./dashboard/Home";
 import Profile from "./dashboard/Profile";
 import Settings from "./dashboard/Settings";
