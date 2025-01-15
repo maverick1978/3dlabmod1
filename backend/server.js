@@ -38,7 +38,8 @@ const createTables = () => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    status TEXT NOT NULL
+    status TEXT NOT NULL DEFAULT 'Pendiente',
+    date TEXT DEFAULT ''
   )
 `,
     (err) => {
@@ -287,15 +288,25 @@ app.get("/api/tasks", (req, res) => {
 
 // Crear una nueva tarea
 app.post("/api/tasks", (req, res) => {
-  const { title, description, status } = req.body;
+  const { title, description, status, date } = req.body;
+
+  // Normalizar la fecha para eliminar problemas de zonas horarias
+  const normalizedDate = new Date(date).toISOString().split("T")[0];
+
   db.run(
-    "INSERT INTO tasks (title, description, status) VALUES (?, ?, ?)",
-    [title, description, status],
+    "INSERT INTO tasks (title, description, status, date) VALUES (?, ?, ?, ?)",
+    [title, description, status, normalizedDate],
     function (err) {
       if (err) {
         res.status(500).json({ error: "Error al crear la tarea" });
       } else {
-        res.json({ id: this.lastID, title, description, status });
+        res.json({
+          id: this.lastID,
+          title,
+          description,
+          status,
+          date: normalizedDate,
+        });
       }
     }
   );
@@ -304,15 +315,19 @@ app.post("/api/tasks", (req, res) => {
 // Actualizar una tarea
 app.put("/api/tasks/:id", (req, res) => {
   const { id } = req.params;
-  const { title, description, status } = req.body;
+  const { title, description, status, date } = req.body;
+
+  // Normalizar la fecha
+  const normalizedDate = new Date(date).toISOString().split("T")[0];
+
   db.run(
-    "UPDATE tasks SET title = ?, description = ?, status = ? WHERE id = ?",
-    [title, description, status, id],
+    "UPDATE tasks SET title = ?, description = ?, status = ?, date = ? WHERE id = ?",
+    [title, description, status, normalizedDate, id],
     function (err) {
       if (err) {
         res.status(500).json({ error: "Error al actualizar la tarea" });
       } else {
-        res.json({ id, title, description, status });
+        res.json({ id, title, description, status, date: normalizedDate });
       }
     }
   );

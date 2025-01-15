@@ -44,7 +44,31 @@ db.serialize(() => {
       } else {
         console.log("Estudiantes insertados correctamente.");
       }
-      db.close(); // Cerrar la conexión después de ejecutar las consultas
     }
   );
+
+  db.run(
+    `
+    INSERT INTO tasks (title, description, status, date) VALUES 
+    ('Revisar tarea de matemáticas', 'Resolver los ejercicios pendientes.', 'Pendiente', '2024-12-28'),
+    ('Preparar presentación', 'Diseñar diapositivas para la reunión.', 'En Progreso', '2024-12-29'),
+    ('Enviar reporte mensual', 'Enviar informe financiero al administrador.', 'Completado', '2024-12-30')
+    `,
+    (err) => {
+      if (err) {
+        console.error("Error al insertar datos:", err.message);
+      } else {
+        console.log("Datos insertados correctamente.");
+      }
+    }
+  );
+});
+
+// Cerrar la conexión después de todas las consultas
+db.close((err) => {
+  if (err) {
+    console.error("Error al cerrar la base de datos:", err.message);
+  } else {
+    console.log("Conexión a la base de datos cerrada.");
+  }
 });
