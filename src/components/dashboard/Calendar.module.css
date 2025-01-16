@@ -6,6 +6,9 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     max-width: 800px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 h2 {
@@ -31,15 +34,26 @@ h2 {
 
 /* Lista de tareas */
 .taskList {
+    display: flex;
+    flex-wrap: wrap;
+    /* Permite múltiples columnas */
+    gap: 1rem;
+    /* Espaciado uniforme entre las tareas */
     margin-top: 1.5rem;
 }
 
 .task {
+    flex: 1 1 calc(33.33% - 1rem);
+    /* Tareas distribuidas horizontalmente */
     background-color: #f8f9fa;
     padding: 1rem;
     border: 1px solid #ddd;
     border-radius: 4px;
-    margin-bottom: 1rem;
+    box-sizing: border-box;
+    /* Evita problemas de padding */
+    text-align: center;
+    min-width: 250px;
+    /* Ancho mínimo */
 }
 
 .task h4 {
@@ -69,105 +83,6 @@ h2 {
 .status.completado {
     background-color: #28a745;
     color: white;
-}
-
-/* Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.modalContent {
-    background: #ffffff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    max-width: 500px;
-    width: 90%;
-}
-
-.formGroup {
-    margin-bottom: 1rem;
-}
-
-.formGroup label {
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-textarea, input, select {
-    width: 100%;
-    padding: 0.8rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-.button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 1rem;
-}
-
-.button:hover {
-    background-color: #0056b3;
-}
-
-.cancelButton {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.cancelButton:hover {
-    background-color: #b02a37;
-}
-
-/* Botones de acción */
-.actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.editButton {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.editButton:hover {
-    background-color: #0056b3;
-}
-
-.deleteButton {
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.deleteButton:hover {
-    background-color: #b02a37;
 }
 
 /* Modal */

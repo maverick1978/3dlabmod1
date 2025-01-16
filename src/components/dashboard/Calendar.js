@@ -66,6 +66,9 @@ function TaskCalendar() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
+    const tempTask = { ...newTask, id: Date.now() }; // Crear un ID temporal
+    setTasks((prev) => [...prev, tempTask]); // Añadir localmente antes de la solicitud
+
     try {
       const response = await fetch("http://localhost:5000/api/tasks", {
         method: "POST",
@@ -73,26 +76,57 @@ function TaskCalendar() {
         body: JSON.stringify(newTask),
       });
       const createdTask = await response.json();
-      setTasks((prev) => [...prev, createdTask]); // Actualizar lista de tareas
-      setShowForm(false); // Ocultar formulario
+
+      // Reemplazar la tarea temporal con la del servidor
+      setTasks((prev) =>
+        prev.map((task) => (task.id === tempTask.id ? createdTask : task))
+      );
+
+      // Crear notificación
+      await fetch("http://localhost:5000/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Nueva Tarea Creada",
+          detail: `Se creó una nueva tarea: "${newTask.title}".`,
+          type: "creation",
+          message: `Tarea creada con éxito: ${newTask.title}`,
+        }),
+      });
+    } catch (error) {
+      console.error("Error al crear la tarea:", error);
+    } finally {
+      setShowForm(false);
       setNewTask({
         title: "",
         description: "",
         status: "Pendiente",
         date: selectedDate.toISOString().split("T")[0],
       });
-    } catch (error) {
-      console.error("Error al crear la tarea:", error);
     }
   };
 
   // Manejar eliminación de una tarea
   const handleDelete = async (taskId) => {
+    const deletedTask = tasks.find((task) => task.id === taskId);
+    setTasks((prev) => prev.filter((task) => task.id !== taskId)); // Actualizar localmente
+
     try {
       await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
         method: "DELETE",
       });
-      setTasks((prev) => prev.filter((task) => task.id !== taskId));
+
+      // Crear notificación
+      await fetch("http://localhost:5000/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Tarea Eliminada",
+          detail: `La tarea "${deletedTask.title}" fue eliminada.`,
+          type: "deletion",
+          message: `Tarea eliminada: ${deletedTask.title}`,
+        }),
+      });
     } catch (error) {
       console.error("Error al eliminar la tarea:", error);
     }
@@ -114,25 +148,34 @@ function TaskCalendar() {
   const handleEditFormSubmit = async (e) => {
     e.preventDefault();
 
+    const updatedTasks = tasks.map((task) =>
+      task.id === editingTask.id ? editingTask : task
+    );
+    setTasks(updatedTasks); // Actualizar el estado antes de la solicitud
+
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/tasks/${editingTask.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editingTask),
-        }
-      );
-      const updatedTask = await response.json();
+      await fetch(`http://localhost:5000/api/tasks/${editingTask.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingTask),
+      });
 
-      setTasks((prev) =>
-        prev.map((task) => (task.id === updatedTask.id ? updatedTask : task))
-      );
-
-      setShowEditForm(false);
-      setEditingTask(null);
+      // Crear notificación
+      await fetch("http://localhost:5000/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Tarea Actualizada",
+          detail: `La tarea "${editingTask.title}" fue actualizada.`,
+          type: "update",
+          message: `Tarea actualizada: ${editingTask.title}`,
+        }),
+      });
     } catch (error) {
       console.error("Error al actualizar la tarea:", error);
+    } finally {
+      setShowEditForm(false);
+      setEditingTask(null);
     }
   };
 

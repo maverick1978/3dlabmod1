@@ -4,8 +4,11 @@
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-width: 600px;
-    margin: 0 auto;
+    max-width: 800px;
+    margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 h2 {
@@ -16,19 +19,30 @@ h2 {
 
 /* Lista de notificaciones */
 .list {
-    list-style: none;
-    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    /* Permite múltiples columnas si es necesario */
+    gap: 1rem;
+    /* Espaciado entre notificaciones */
     margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .notification {
+    flex: 1 1 calc(33.33% - 1rem);
+    /* Cuadro que ocupa un tercio del espacio disponible */
     padding: 1rem;
-    margin-bottom: 0.5rem;
     background-color: #f8f9fa;
     border: 1px solid #ddd;
     border-radius: 4px;
+    box-sizing: border-box;
+    /* Para evitar problemas de padding */
+    text-align: center;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    min-width: 250px;
+    /* Ancho mínimo */
 }
 
 .notification:hover {
@@ -64,8 +78,9 @@ h2 {
     padding: 2rem;
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    max-width: 500px;
+    max-width: 600px;
     width: 90%;
+    text-align: center;
 }
 
 .popupContent h3 {
@@ -96,9 +111,10 @@ h2 {
 /* Filtros */
 .filter {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    margin-bottom: 1rem;
     gap: 1rem;
+    justify-content: center;
 }
 
 .filter label {
@@ -111,4 +127,17 @@ h2 {
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 1rem;
+}
+
+.deleteButton {
+    background-color: transparent;
+    border: none;
+    color: red;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+}
+
+.deleteButton:hover {
+    color: darkred;
 }

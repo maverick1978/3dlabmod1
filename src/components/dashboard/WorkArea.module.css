@@ -6,8 +6,12 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     max-width: 800px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
+/* Título */
 h2 {
     color: #007bff;
     margin-bottom: 1.5rem;
@@ -64,16 +68,26 @@ textarea {
 /* Lista de tareas */
 .taskList {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    /* Permite múltiples columnas en función del espacio disponible */
     gap: 1rem;
+    /* Espaciado uniforme entre las tareas */
+    justify-content: flex-start;
+    /* Alineación a la izquierda o derecha según necesidad */
 }
 
 .task {
+    flex: 1 1 calc(33.33% - 1rem);
+    /* Distribución en columnas según el espacio disponible */
     background-color: #f8f9fa;
     padding: 1rem;
     border: 1px solid #ddd;
     border-radius: 4px;
-    position: relative;
+    box-sizing: border-box;
+    /* Evita problemas de padding */
+    text-align: center;
+    min-width: 250px;
+    /* Ancho mínimo para cada tarea */
 }
 
 .task h3 {

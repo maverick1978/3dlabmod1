@@ -7,10 +7,19 @@ const socket = io("http://localhost:5000");
 function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [selectedNotification, setSelectedNotification] = useState(null);
-  const [filter, setFilter] = useState("all"); // Estado para el filtro
+  const [filter, setFilter] = useState("all");
+
+  // Función para formatear la fecha
+  const formatDate = (isoDate) => {
+    const date = new Date(isoDate);
+    return date.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   useEffect(() => {
-    // Cargar notificaciones iniciales
     const fetchNotifications = async () => {
       try {
         const response = await fetch(
@@ -19,7 +28,14 @@ function Notifications() {
           }`
         );
         const data = await response.json();
-        setNotifications(data);
+
+        // Asegurarse de que cada notificación tenga una fecha
+        const notificationsWithDates = data.map((notification) => ({
+          ...notification,
+          date: notification.date || new Date().toISOString(), // Agregar fecha actual si falta
+        }));
+
+        setNotifications(notificationsWithDates);
       } catch (error) {
         console.error("Error al cargar notificaciones:", error);
       }
@@ -27,18 +43,22 @@ function Notifications() {
 
     fetchNotifications();
 
-    // Escuchar nuevas notificaciones en tiempo real
+    // Escuchar nuevas notificaciones
     socket.on("new-notification", (notification) => {
-      setNotifications((prev) => [notification, ...prev]);
+      const notificationWithDate = {
+        ...notification,
+        date: notification.date || new Date().toISOString(),
+      };
+      setNotifications((prev) => [notificationWithDate, ...prev]);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [filter]); // Vuelve a cargar las notificaciones si cambia el filtro
+  }, [filter]);
 
   const handleFilterChange = (e) => {
-    setFilter(e.target.value); // Actualiza el filtro seleccionado
+    setFilter(e.target.value);
   };
 
   const markAsRead = (id) => {
@@ -50,6 +70,20 @@ function Notifications() {
         notification.id === id ? { ...notification, read: true } : notification
       )
     );
+  };
+
+  const deleteNotification = async (id) => {
+    try {
+      await fetch(`http://localhost:5000/api/notifications/${id}`, {
+        method: "DELETE",
+      });
+
+      setNotifications((prev) =>
+        prev.filter((notification) => notification.id !== id)
+      );
+    } catch (error) {
+      console.error("Error al eliminar la notificación:", error);
+    }
   };
 
   const openNotification = (notification) => {
@@ -83,12 +117,22 @@ function Notifications() {
             className={`${styles.notification} ${
               notification.read ? styles.read : ""
             }`}
-            onClick={() => openNotification(notification)}
           >
-            {notification.title}
-            {!notification.read && (
-              <span className={styles.unreadMarker}>●</span>
-            )}
+            <div onClick={() => openNotification(notification)}>
+              <div>{notification.title}</div>
+              <div className={styles.date}>
+                Publicado el: {formatDate(notification.date)}
+              </div>
+              {!notification.read && (
+                <span className={styles.unreadMarker}>●</span>
+              )}
+            </div>
+            <button
+              className={styles.deleteButton}
+              onClick={() => deleteNotification(notification.id)}
+            >
+              ✖
+            </button>
           </li>
         ))}
       </ul>
@@ -98,6 +142,9 @@ function Notifications() {
           <div className={styles.popupContent}>
             <h3>{selectedNotification.title}</h3>
             <p>{selectedNotification.detail}</p>
+            <div className={styles.date}>
+              Publicado el: {formatDate(selectedNotification.date)}
+            </div>
             <button onClick={closeNotification} className={styles.closeButton}>
               Cerrar
             </button>

@@ -5,7 +5,7 @@ const sqlite3 = require("sqlite3").verbose();
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-
+const router = express.Router();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -70,20 +70,22 @@ const createTables = () => {
 
   db.run(
     `
-    CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      detail TEXT NOT NULL,
-      read INTEGER DEFAULT 0,
-      type TEXT DEFAULT 'general'
-    )
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    read INTEGER DEFAULT 0,
+    type TEXT DEFAULT 'general',
+    message TEXT DEFAULT 'Mensaje por defecto',
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
   `,
     (err) => {
       if (!err) {
-        console.log("Tablas creadas correctamente.");
+        console.log("Tabla 'notifications' creada correctamente.");
         seedNotifications(); // Ejecutar el seed solo después de crear las tablas
       } else {
-        console.error("Error al crear las tablas:", err.message);
+        console.error("Error al crear la tabla 'notifications':", err.message);
       }
     }
   );
@@ -211,6 +213,31 @@ app.get("/api/notifications", (req, res) => {
   });
 });
 
+// Crear una notificación
+app.post("/api/notifications", (req, res) => {
+  const { title, detail, type = "general", message } = req.body;
+
+  db.run(
+    `INSERT INTO notifications (title, detail, type, message) VALUES (?, ?, ?, ?)`,
+    [title, detail, type, message],
+    function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al crear la notificación" });
+        console.error(err.message);
+      } else {
+        res.status(201).json({
+          id: this.lastID,
+          title,
+          detail,
+          type,
+          message,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+  );
+});
+
 // Endpoint para marcar una notificación como leída
 app.post("/api/notifications/:id/read", (req, res) => {
   const { id } = req.params;
@@ -227,12 +254,36 @@ app.post("/api/notifications/:id/read", (req, res) => {
   );
 });
 
+// Eliminar notificación por ID
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Notification.findByIdAndDelete(id);
+    res.status(200).json({ message: "Notificación eliminada con éxito." });
+  } catch (error) {
+    res.status(500).json({ error: "Error al eliminar la notificación." });
+  }
+});
+
 // Notificaciones en tiempo real
 io.on("connection", (socket) => {
   console.log("Cliente conectado");
 
   socket.on("disconnect", () => {
     console.log("Cliente desconectado");
+  });
+
+  // Endpoint para eliminar notificación por ID
+  app.delete("/api/notifications/:id", (req, res) => {
+    const { id } = req.params;
+    db.run("DELETE FROM notifications WHERE id = ?", [id], function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al eliminar la notificación." });
+      } else {
+        res.status(200).json({ message: "Notificación eliminada con éxito." });
+        io.emit("notification-deleted", id); // Enviar evento de eliminación a través de socket.io
+      }
+    });
   });
 
   // Evento para enviar nuevas notificaciones

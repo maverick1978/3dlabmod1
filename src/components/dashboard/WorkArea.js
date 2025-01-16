@@ -13,20 +13,33 @@ function WorkArea() {
   const [filter, setFilter] = useState("all");
   const descriptionRef = useRef(null);
 
-  // Cargar tareas desde el backend
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const response = await fetch("http://localhost:5000/api/tasks");
-        const data = await response.json();
-        setTasks(data);
-      } catch (error) {
-        console.error("Error al cargar tareas:", error);
-      }
-    };
+  // Función para cargar tareas desde el backend
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/tasks");
+      const data = await response.json();
+      setTasks(data);
+    } catch (error) {
+      console.error("Error al cargar tareas:", error);
+    }
+  };
 
+  useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Crear una notificación
+  const createNotification = async (title, detail, type) => {
+    try {
+      await fetch("http://localhost:5000/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, detail, type, message: detail }),
+      });
+    } catch (error) {
+      console.error("Error al crear la notificación:", error);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -42,20 +55,22 @@ function WorkArea() {
     e.preventDefault();
 
     if (editingTask) {
-      // Actualizar tarea
+      // Actualizar tarea existente
       try {
-        const response = await fetch(
-          `http://localhost:5000/api/tasks/${editingTask.id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
-          }
+        await fetch(`http://localhost:5000/api/tasks/${editingTask.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+
+        await createNotification(
+          "Tarea Actualizada",
+          `La tarea "${form.title}" ha sido actualizada.`,
+          "update"
         );
-        const updatedTask = await response.json();
-        setTasks((prev) =>
-          prev.map((task) => (task.id === updatedTask.id ? updatedTask : task))
-        );
+
+        // Recargar tareas después de la edición
+        await fetchTasks();
         setEditingTask(null);
       } catch (error) {
         console.error("Error al actualizar la tarea:", error);
@@ -63,13 +78,20 @@ function WorkArea() {
     } else {
       // Crear nueva tarea
       try {
-        const response = await fetch("http://localhost:5000/api/tasks", {
+        await fetch("http://localhost:5000/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        const newTask = await response.json();
-        setTasks((prev) => [...prev, newTask]);
+
+        await createNotification(
+          "Nueva Tarea Creada",
+          `Se ha creado la tarea: "${form.title}".`,
+          "creation"
+        );
+
+        // Recargar tareas después de crear una nueva
+        await fetchTasks();
       } catch (error) {
         console.error("Error al crear la tarea:", error);
       }
@@ -79,14 +101,14 @@ function WorkArea() {
       title: "",
       description: "",
       status: "Pendiente",
-      date: new Date().toISOString().split("T")[0], // Resetear a la fecha actual
+      date: new Date().toISOString().split("T")[0],
     });
   };
 
   const handleEdit = (task) => {
     setForm({
       ...task,
-      date: new Date(task.date).toISOString().split("T")[0], // Convertir a formato aceptado por input[type="date"]
+      date: new Date(task.date).toISOString().split("T")[0],
     });
     setEditingTask(task);
 
@@ -98,14 +120,28 @@ function WorkArea() {
 
   const handleDelete = async (id) => {
     try {
+      const deletedTask = tasks.find((task) => task.id === id);
+
       await fetch(`http://localhost:5000/api/tasks/${id}`, {
         method: "DELETE",
       });
-      setTasks((prev) => prev.filter((task) => task.id !== id));
+
+      await createNotification(
+        "Tarea Eliminada",
+        `La tarea "${deletedTask.title}" ha sido eliminada.`,
+        "deletion"
+      );
+
+      // Recargar tareas después de eliminar
+      await fetchTasks();
     } catch (error) {
       console.error("Error al eliminar la tarea:", error);
     }
   };
+
+  const filteredTasks = tasks.filter((task) =>
+    filter === "all" ? true : task.status === filter
+  );
 
   return (
     <div className={styles.container}>
@@ -169,7 +205,7 @@ function WorkArea() {
 
       {/* Lista de Tareas */}
       <div className={styles.taskList}>
-        {tasks.map((task) => (
+        {filteredTasks.map((task) => (
           <div key={task.id} className={styles.task}>
             <h3>{task.title}</h3>
             <p>{task.description}</p>
