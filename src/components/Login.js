@@ -4,27 +4,39 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser, faLock } from "@fortawesome/free-solid-svg-icons";
 
 function Login() {
-  const [username, setUsername] = useState("");
+  const [user, setUser] = useState(""); // Cambiar "username" a "user"
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch("http://localhost:5000/login", {
+      const response = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ user, password }), // Enviar "user" y "password"
       });
 
+      // Validar si el servidor responde correctamente
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Respuesta inesperada del servidor.");
+      }
+
       const data = await response.json();
+
       if (response.ok) {
+        // Guardar el token en el almacenamiento local
+        localStorage.setItem("token", data.token);
         alert("Inicio de sesión exitoso");
+        console.log("Datos del usuario:", data);
+        window.location.href = "/admin/dashboard"; // Redirigir al dashboard del administrador
       } else {
-        alert(data.error);
+        alert(data.error || "Error al iniciar sesión");
       }
     } catch (error) {
       console.error("Error en el login:", error);
+      alert("No se pudo conectar con el servidor. Verifica tu conexión.");
     }
   };
 
@@ -37,8 +49,8 @@ function Login() {
             <FontAwesomeIcon icon={faUser} className={styles.icon} />
             <input
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={user} // Cambiado de "username" a "user"
+              onChange={(e) => setUser(e.target.value)}
               placeholder="Usuario"
               required
             />

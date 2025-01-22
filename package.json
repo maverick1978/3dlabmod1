@@ -8,6 +8,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "chart.js": "^4.4.7",
     "cra-template": "1.2.0",
+    "jsonwebtoken": "^9.0.2",
     "react": "^19.0.0",
     "react-calendar": "^5.1.0",
     "react-dom": "^19.0.0",
