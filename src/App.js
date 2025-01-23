@@ -4,14 +4,34 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import Dashboard from "./components/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminDashboard from "./components/admin/AdminDashboard";
+import UserManagement from "./components/admin/UserManagement";
+import TaskManagement from "./components/admin/TaskManagement";
+import Reports from "./components/admin/Reports";
+
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Rutas públicas */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard/*" element={<Dashboard />} />{" "}
-        {/* Subrutas en dashboard */}
+
+        {/* Rutas protegidas para dashboard genérico */}
+        <Route path="/dashboard/*" element={<Dashboard />} />
+
+        {/* Rutas protegidas para administrador */}
+        <Route path="/admin" element={<ProtectedRoute requiredRole="admin" />}>
+          {/* Subrutas del panel de administrador */}
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="tasks" element={<TaskManagement />} />
+          <Route path="reports" element={<Reports />} />
+        </Route>
+
+        {/* Ruta por defecto para manejar no coincidencias */}
+        <Route path="*" element={<div>Ruta no encontrada</div>} />
       </Routes>
     </Router>
   );

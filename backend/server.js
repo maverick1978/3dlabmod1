@@ -1,3 +1,4 @@
+// Importaciones y configuraciones
 const http = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
@@ -5,7 +6,7 @@ const sqlite3 = require("sqlite3").verbose();
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const router = express.Router();
+const jwt = require("jsonwebtoken");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -15,10 +16,31 @@ const io = new Server(server, {
 });
 const PORT = 5000;
 
-// Middleware
+// Middlewares globales
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+
+// Middleware de roles
+const verifyRole = (requiredRole) => (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "Token no proporcionado" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, "SECRET_KEY");
+    if (decoded.role === requiredRole || decoded.role === "admin") {
+      req.user = decoded;
+      next();
+    } else {
+      res.status(403).json({ error: "No autorizado" });
+    }
+  } catch (error) {
+    res.status(401).json({ error: "Token inválido o expirado" });
+  }
+};
 
 // Conexión a la base de datos
 const db = new sqlite3.Database("./users.db", (err) => {
@@ -52,13 +74,14 @@ const createTables = () => {
   );
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      email TEXT UNIQUE,
-      username TEXT UNIQUE,
-      password TEXT
-    )
+      user TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'user', -- 'admin' o 'user'
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
@@ -91,13 +114,20 @@ const createTables = () => {
   );
 };
 
-// Seed inicial para notificaciones
-const seedNotifications = () => {
-  const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?,?)`;
+// Seed inicial para notificaciones y creación del administrador
+const seedNotifications = async () => {
+  const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?, ?)`;
   const insertStudentsQuery =
     "INSERT INTO students (name, progress) VALUES (?, ?)";
 
+  // Generar la contraseña encriptada para el administrador
+  const adminUser = "admin";
+  const adminEmail = "admin@example.com";
+  const adminPassword = await bcrypt.hash("admin123", 10); // Contraseña encriptada
+  const adminRole = "admin";
+
   db.serialize(() => {
+    // Notificaciones iniciales
     db.run(query, [
       "Nueva tarea asignada",
       "Revisar la tarea de matemáticas.",
@@ -129,6 +159,8 @@ const seedNotifications = () => {
         }
       }
     );
+
+    // Estudiantes iniciales
     db.run(insertStudentsQuery, ["Juan Pérez", 80], (err) => {
       if (err) {
         console.error("Error al insertar estudiante Juan Pérez:", err.message);
@@ -149,52 +181,118 @@ const seedNotifications = () => {
         console.log("Estudiantes insertados correctamente.");
       }
     });
+
+    // Crear el usuario administrador si no existe
+    db.get(
+      "SELECT * FROM users WHERE user = ? OR email = ?",
+      [adminUser, adminEmail],
+      (err, user) => {
+        if (err) {
+          console.error("Error al verificar el administrador:", err.message);
+        } else if (!user) {
+          db.run(
+            "INSERT INTO users (user, email, password, role) VALUES (?, ?, ?, ?)",
+            [adminUser, adminEmail, adminPassword, adminRole],
+            (err) => {
+              if (err) {
+                console.error("Error al crear el administrador:", err.message);
+              } else {
+                console.log("Administrador creado exitosamente.");
+              }
+            }
+          );
+        } else {
+          console.log("El administrador ya existe.");
+        }
+      }
+    );
   });
 };
 
 // Crear tablas y seed inicial
 createTables();
-
-// Endpoint para registrar usuarios
-app.post("/register", async (req, res) => {
-  const { name, email, username, password } = req.body;
+// Endpoint Registrar usuario
+app.post("/api/register", async (req, res) => {
+  const { user, email, password, role } = req.body;
 
   try {
+    // Encriptar la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-    const query = `INSERT INTO users (name, email, username, password) VALUES (?, ?, ?, ?)`;
-    db.run(query, [name, email, username, hashedPassword], function (err) {
-      if (err) {
-        res
-          .status(400)
-          .json({ error: "Error al registrar usuario: " + err.message });
-      } else {
-        res.json({
-          message: "Usuario registrado con éxito",
-          userId: this.lastID,
-        });
+
+    db.run(
+      "INSERT INTO users (user, email, password, role) VALUES (?, ?, ?, ?)",
+      [user, email, hashedPassword, role || "user"],
+      function (err) {
+        if (err) {
+          res.status(400).json({
+            error: "Error al registrar usuario: " + err.message,
+          });
+        } else {
+          res.status(201).json({
+            id: this.lastID,
+            user,
+            email,
+            role: role || "user",
+          });
+        }
       }
-    });
+    );
   } catch (error) {
-    res.status(500).json({ error: "Error al encriptar la contraseña" });
+    res.status(500).json({ error: "Error del servidor al registrar usuario" });
   }
 });
 
-// Endpoint para login
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
+// Endpoint Iniciar sesión
+// Endpoint Iniciar sesión
+app.post("/api/login", async (req, res) => {
+  const { user, password } = req.body;
 
-  const query = `SELECT * FROM users WHERE username = ?`;
-  db.get(query, [username], async (err, row) => {
-    if (err) {
-      res
-        .status(500)
-        .json({ error: "Error en la base de datos: " + err.message });
-    } else if (row && (await bcrypt.compare(password, row.password))) {
-      res.json({ message: "Inicio de sesión exitoso", user: row });
-    } else {
-      res.status(401).json({ error: "Usuario o contraseña incorrectos" });
+  // Verificar si se trata de un usuario "admin" con credenciales predeterminadas
+  if (user === "admin" && password === "admin123") {
+    // Generar token para el usuario admin
+    const token = jwt.sign({ user: user, role: "admin" }, "SECRET_KEY", {
+      expiresIn: "1h",
+    });
+    return res.status(200).json({
+      message: "Inicio de sesión exitoso (admin)",
+      token,
+      user: user,
+    });
+  }
+
+  // Consultar en la base de datos por username o email
+  db.get(
+    "SELECT * FROM users WHERE user = ? OR email = ?",
+    [user, user],
+    async (err, userRow) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al buscar usuario" });
+      }
+      if (!userRow) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      // Verificar contraseña
+      const isValid = await bcrypt.compare(password, userRow.password);
+
+      if (isValid) {
+        // Generar token JWT con información del usuario
+        const token = jwt.sign(
+          { id: userRow.id, role: userRow.role },
+          "SECRET_KEY", // Cambia esto por una clave más segura
+          { expiresIn: "1h" }
+        );
+        return res.status(200).json({
+          message: "Inicio de sesión exitoso",
+          token,
+          user: userRow.user,
+          role: userRow.role,
+        });
+      } else {
+        return res.status(401).json({ error: "Credenciales inválidas" });
+      }
     }
-  });
+  );
 });
 
 // Endpoint para obtener todas las notificaciones
@@ -255,6 +353,20 @@ app.post("/api/notifications/:id/read", (req, res) => {
 });
 
 // Eliminar notificación por ID
+
+app.delete("/api/notifications/:id", (req, res) => {
+  const { id } = req.params;
+  db.run("DELETE FROM notifications WHERE id = ?", [id], function (err) {
+    if (err) {
+      res.status(500).json({ error: "Error al eliminar la notificación." });
+    } else {
+      res.status(200).json({ message: "Notificación eliminada con éxito." });
+      io.emit("notification-deleted", id); // Enviar evento de eliminación a través de socket.io
+    }
+  });
+});
+
+/* 
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -264,10 +376,15 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "Error al eliminar la notificación." });
   }
 });
-
+ */
 // Notificaciones en tiempo real
 io.on("connection", (socket) => {
   console.log("Cliente conectado");
+
+  // Manejo de eventos personalizados
+  socket.on("example-event", (data) => {
+    console.log("Evento recibido:", data);
+  });
 
   socket.on("disconnect", () => {
     console.log("Cliente desconectado");
@@ -337,12 +454,22 @@ app.get("/api/tasks", (req, res) => {
   });
 });
 
+// Ruta protegida para el AdminDashboard
+app.get("/api/admin/dashboard", verifyRole("admin"), (req, res) => {
+  res.status(200).json({
+    message: "Bienvenido al AdminDashboard",
+    user: req.user, // Información del usuario decodificada desde el token
+  });
+});
+
 // Crear una nueva tarea
 app.post("/api/tasks", (req, res) => {
   const { title, description, status, date } = req.body;
 
   // Normalizar la fecha para eliminar problemas de zonas horarias
-  const normalizedDate = new Date(date).toISOString().split("T")[0];
+  const normalizedDate = date
+    ? new Date(date).toISOString().split("T")[0]
+    : null;
 
   db.run(
     "INSERT INTO tasks (title, description, status, date) VALUES (?, ?, ?, ?)",

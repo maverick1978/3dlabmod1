@@ -10,6 +10,7 @@ function Register() {
     username: "",
     password: "",
     confirmPassword: "",
+    role: "user", // Valor predeterminado para el rol
   });
 
   const handleChange = (e) => {
@@ -29,10 +30,15 @@ function Register() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/register", {
+      const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        }),
       });
 
       const data = await response.json();
@@ -40,7 +46,7 @@ function Register() {
         alert("Registro exitoso");
         window.location.href = "/";
       } else {
-        alert(data.error);
+        alert(data.error || "Error en el registro");
       }
     } catch (error) {
       console.error("Error en el registro:", error);
@@ -106,6 +112,20 @@ function Register() {
               placeholder="Confirmar Contraseña"
               required
             />
+          </div>
+          <div className={styles.formGroup}>
+            <label htmlFor="role" className={styles.label}>
+              Rol:
+            </label>
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className={styles.select}
+            >
+              <option value="user">Usuario Estándar</option>
+              <option value="admin">Administrador</option>
+            </select>
           </div>
           <button type="submit" className={styles.button}>
             Registrarse
