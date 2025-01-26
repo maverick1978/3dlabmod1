@@ -75,13 +75,15 @@ const createTables = () => {
 
   db.run(`
       CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user TEXT NOT NULL UNIQUE,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      role TEXT DEFAULT 'user', -- 'admin' o 'user'
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  role TEXT CHECK(role IN ('Estudiante', 'Educador', 'administrador')) DEFAULT 'Educador',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
   `);
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
@@ -124,7 +126,7 @@ const seedNotifications = async () => {
   const adminUser = "admin";
   const adminEmail = "admin@example.com";
   const adminPassword = await bcrypt.hash("admin123", 10); // Contraseña encriptada
-  const adminRole = "admin";
+  const adminRole = "administrador";
 
   db.serialize(() => {
     // Notificaciones iniciales
@@ -213,7 +215,7 @@ const seedNotifications = async () => {
 createTables();
 // Endpoint Registrar usuario
 app.post("/api/register", async (req, res) => {
-  const { user, email, password, role } = req.body;
+  const { username, email, password, role } = req.body;
 
   try {
     // Encriptar la contraseña
@@ -221,7 +223,7 @@ app.post("/api/register", async (req, res) => {
 
     db.run(
       "INSERT INTO users (user, email, password, role) VALUES (?, ?, ?, ?)",
-      [user, email, hashedPassword, role || "user"],
+      [username, email, hashedPassword, role || "user"],
       function (err) {
         if (err) {
           res.status(400).json({
@@ -230,7 +232,7 @@ app.post("/api/register", async (req, res) => {
         } else {
           res.status(201).json({
             id: this.lastID,
-            user,
+            username,
             email,
             role: role || "user",
           });
@@ -425,6 +427,52 @@ app.get("/api/students", (req, res) => {
       res.status(500).json({ error: "Error al obtener estudiantes" });
     } else {
       res.json(rows);
+    }
+  });
+});
+
+app.get("/api/users", verifyRole("admin"), (req, res) => {
+  db.all("SELECT id, user, email, role FROM users", [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: "Error al obtener los usuarios" });
+    } else {
+      res.json(rows);
+    }
+  });
+});
+
+app.put("/api/users/:id", verifyRole("admin"), (req, res) => {
+  const { id } = req.params;
+  const { user, email, role, password } = req.body;
+
+  let query = "UPDATE users SET user = ?, email = ?, role = ?";
+  const params = [user, email, role, id];
+
+  // Si se proporciona una nueva contraseña, incluirla en la consulta
+  if (password) {
+    query += ", password = ?";
+    params.splice(3, 0, bcrypt.hashSync(password, 10)); // Inserta la contraseña encriptada
+  }
+
+  query += " WHERE id = ?";
+
+  db.run(query, params, function (err) {
+    if (err) {
+      res.status(500).json({ error: "Error al actualizar el usuario" });
+    } else {
+      res.json({ message: "Usuario actualizado correctamente" });
+    }
+  });
+});
+
+app.delete("/api/users/:id", verifyRole("admin"), (req, res) => {
+  const { id } = req.params;
+
+  db.run("DELETE FROM users WHERE id = ?", [id], function (err) {
+    if (err) {
+      res.status(500).json({ error: "Error al eliminar el usuario" });
+    } else {
+      res.json({ message: "Usuario eliminado correctamente" });
     }
   });
 });

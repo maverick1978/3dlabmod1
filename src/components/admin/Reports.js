@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Importamos useNavigate
 import styles from "./Reports.module.css";
 
 function Reports() {
   const [report, setReport] = useState({});
+  const navigate = useNavigate(); // Hook para redirigir
 
+  // Cargar datos del reporte desde el backend
   useEffect(() => {
     const fetchReport = async () => {
       const token = localStorage.getItem("token");
@@ -35,6 +38,14 @@ function Reports() {
           <p>Total enviadas: {report.notifications}</p>
         </div>
       </div>
+
+      {/* Botón para regresar al menú principal */}
+      <button
+        className={styles.backButton}
+        onClick={() => navigate("/admin/dashboard")}
+      >
+        Volver al Menú Principal
+      </button>
     </div>
   );
 }

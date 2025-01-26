@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Importamos useNavigate
 import styles from "./TaskManager.module.css";
 
 function TaskManager() {
   const [tasks, setTasks] = useState([]);
+  const navigate = useNavigate(); // Hook para redirigir
 
+  // Cargar tareas desde el backend
   useEffect(() => {
     const fetchTasks = async () => {
       const token = localStorage.getItem("token");
@@ -17,6 +20,7 @@ function TaskManager() {
     fetchTasks();
   }, []);
 
+  // Manejar eliminación de tareas
   const handleDelete = async (id) => {
     const token = localStorage.getItem("token");
     await fetch(`http://localhost:5000/api/tasks/${id}`, {
@@ -48,12 +52,25 @@ function TaskManager() {
               <td>{task.status}</td>
               <td>{task.date}</td>
               <td>
-                <button onClick={() => handleDelete(task.id)}>Eliminar</button>
+                <button
+                  onClick={() => handleDelete(task.id)}
+                  className={styles.deleteButton}
+                >
+                  Eliminar
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {/* Botón para regresar al menú principal */}
+      <button
+        className={styles.backButton}
+        onClick={() => navigate("/admin/dashboard")}
+      >
+        Volver al Menú Principal
+      </button>
     </div>
   );
 }

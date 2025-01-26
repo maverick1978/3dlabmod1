@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Importamos useNavigate para redirigir
 import styles from "./UserManagement.module.css";
 
 function UserManagement() {
@@ -10,6 +11,7 @@ function UserManagement() {
     role: "",
     password: "",
   });
+  const navigate = useNavigate(); // Hook para redirigir
 
   // Cargar usuarios desde el backend
   useEffect(() => {
@@ -107,8 +109,9 @@ function UserManagement() {
                   }
                   disabled={editingUser !== user.id}
                 >
-                  <option value="user">Usuario</option>
-                  <option value="admin">Administrador</option>
+                  <option value="Estudiante">Estudiante</option>
+                  <option value="Educador">Educador</option>
+                  <option value="administrador">Administrador</option>
                 </select>
               </td>
               <td>
@@ -185,13 +188,22 @@ function UserManagement() {
                 value={formData.role}
                 onChange={handleInputChange}
               >
-                <option value="user">Usuario</option>
-                <option value="admin">Administrador</option>
+                <option value="Estudiante">Estudiante</option>
+                <option value="Educador">Educador</option>
+                <option value="administrador">Administrador</option>
               </select>
             </label>
           </form>
         </div>
       )}
+
+      {/* Botón para regresar al menú principal */}
+      <button
+        className={styles.backButton}
+        onClick={() => navigate("/admin/dashboard")}
+      >
+        Volver al Menú Principal
+      </button>
     </div>
   );
 }

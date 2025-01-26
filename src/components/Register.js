@@ -10,7 +10,7 @@ function Register() {
     username: "",
     password: "",
     confirmPassword: "",
-    role: "user", // Valor predeterminado para el rol
+    role: "Estudiante", // Valor predeterminado para el rol
   });
 
   const handleChange = (e) => {
@@ -123,8 +123,8 @@ function Register() {
               onChange={handleChange}
               className={styles.select}
             >
-              <option value="user">Usuario Estándar</option>
-              <option value="admin">Administrador</option>
+              <option value="Estudiante">Estudiante</option>
+              <option value="Educador">Educador</option>
             </select>
           </div>
           <button type="submit" className={styles.button}>
