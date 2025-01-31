@@ -24,6 +24,12 @@ function AdminDashboard() {
     fetchStats();
   }, []);
 
+  // Cerrar sesión
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Eliminar token de autenticación
+    navigate("/"); // Redirigir al login
+  };
+
   return (
     <div className={styles.container}>
       <h2>Panel de Administrador</h2>
@@ -58,6 +64,9 @@ function AdminDashboard() {
         </button>
         <button onClick={() => navigate("/admin/reports")}>
           Reportes y Estadísticas
+        </button>
+        <button onClick={handleLogout} className={styles.logoutButton}>
+          Cerrar Sesión
         </button>
       </div>
     </div>
