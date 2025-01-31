@@ -74,15 +74,15 @@ const createTables = () => {
   );
 
   db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user TEXT NOT NULL UNIQUE,
-  email TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
-  role TEXT CHECK(role IN ('Estudiante', 'Educador', 'administrador')) DEFAULT 'Educador',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
+     CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    role TEXT CHECK(role IN ('Estudiante', 'Educador', 'admin')) DEFAULT 'Educador',
+    approved INTEGER DEFAULT 0,  -- 0 = Pendiente, 1 = Aprobado
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
 
   `);
   db.run(`
@@ -126,7 +126,7 @@ const seedNotifications = async () => {
   const adminUser = "admin";
   const adminEmail = "admin@example.com";
   const adminPassword = await bcrypt.hash("admin123", 10); // Contraseña encriptada
-  const adminRole = "administrador";
+  const adminRole = "admin";
 
   db.serialize(() => {
     // Notificaciones iniciales
@@ -251,7 +251,6 @@ app.post("/api/login", async (req, res) => {
 
   // Verificar si se trata de un usuario "admin" con credenciales predeterminadas
   if (user === "admin" && password === "admin123") {
-    // Generar token para el usuario admin
     const token = jwt.sign({ user: user, role: "admin" }, "SECRET_KEY", {
       expiresIn: "1h",
     });
@@ -274,14 +273,20 @@ app.post("/api/login", async (req, res) => {
         return res.status(404).json({ error: "Usuario no encontrado" });
       }
 
+      // Si el usuario no está aprobado, rechazar el login
+      if (userRow.approved === 0) {
+        return res
+          .status(403)
+          .json({ error: "Cuenta pendiente de aprobación" });
+      }
+
       // Verificar contraseña
       const isValid = await bcrypt.compare(password, userRow.password);
 
       if (isValid) {
-        // Generar token JWT con información del usuario
         const token = jwt.sign(
           { id: userRow.id, role: userRow.role },
-          "SECRET_KEY", // Cambia esto por una clave más segura
+          "SECRET_KEY",
           { expiresIn: "1h" }
         );
         return res.status(200).json({
@@ -296,7 +301,6 @@ app.post("/api/login", async (req, res) => {
     }
   );
 });
-
 // Endpoint para obtener todas las notificaciones
 app.get("/api/notifications", (req, res) => {
   const { type } = req.query; // Filtrar por tipo si es necesario
@@ -432,13 +436,17 @@ app.get("/api/students", (req, res) => {
 });
 
 app.get("/api/users", verifyRole("admin"), (req, res) => {
-  db.all("SELECT id, user, email, role FROM users", [], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: "Error al obtener los usuarios" });
-    } else {
-      res.json(rows);
+  db.all(
+    "SELECT id, user, email, role, approved FROM users",
+    [],
+    (err, rows) => {
+      if (err) {
+        res.status(500).json({ error: "Error al obtener los usuarios" });
+      } else {
+        res.json(rows);
+      }
     }
-  });
+  );
 });
 
 app.put("/api/users/:id", verifyRole("admin"), (req, res) => {
@@ -477,6 +485,28 @@ app.delete("/api/users/:id", verifyRole("admin"), (req, res) => {
   });
 });
 
+app.put("/api/users/:id/approve", verifyRole("admin"), (req, res) => {
+  const { id } = req.params;
+  const { approved } = req.body; // Recibir si queremos aprobar (1) o desaprobar (0)
+
+  db.run(
+    "UPDATE users SET approved = ? WHERE id = ?",
+    [approved, id],
+    function (err) {
+      if (err) {
+        res
+          .status(500)
+          .json({ error: "Error al actualizar el estado de aprobación" });
+      } else {
+        res.json({
+          message: "Estado de usuario actualizado correctamente",
+          approved,
+        });
+      }
+    }
+  );
+});
+
 // Enviar una recomendación a un estudiante
 app.post("/api/students/:id/recommendation", (req, res) => {
   const { id } = req.params;
@@ -509,7 +539,31 @@ app.get("/api/admin/dashboard", verifyRole("admin"), (req, res) => {
     user: req.user, // Información del usuario decodificada desde el token
   });
 });
+app.get("/api/admin/stats", verifyRole("admin"), (req, res) => {
+  const queryUsers = "SELECT COUNT(*) AS totalUsers FROM users";
+  const queryPendingTasks =
+    "SELECT COUNT(*) AS pendingTasks FROM tasks WHERE status = 'Pendiente'";
+  const queryCompletedTasks =
+    "SELECT COUNT(*) AS completedTasks FROM tasks WHERE status = 'Completada'";
+  const queryReports = "SELECT COUNT(*) AS totalReports FROM reports";
 
+  db.serialize(() => {
+    db.get(queryUsers, (err, usersResult) => {
+      db.get(queryPendingTasks, (err, pendingTasksResult) => {
+        db.get(queryCompletedTasks, (err, completedTasksResult) => {
+          db.get(queryReports, (err, reportsResult) => {
+            res.json({
+              totalUsers: usersResult?.totalUsers || 0,
+              pendingTasks: pendingTasksResult?.pendingTasks || 0,
+              completedTasks: completedTasksResult?.completedTasks || 0,
+              totalReports: reportsResult?.totalReports || 0,
+            });
+          });
+        });
+      });
+    });
+  });
+});
 // Crear una nueva tarea
 app.post("/api/tasks", (req, res) => {
   const { title, description, status, date } = req.body;

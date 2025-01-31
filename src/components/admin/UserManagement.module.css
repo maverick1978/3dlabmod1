@@ -81,3 +81,19 @@ button.delete:hover {
 .backButton:hover {
     background-color: #0056b3;
 }
+
+.approveButton {
+    background-color: green;
+    color: white;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.disapproveButton {
+    background-color: red;
+    color: white;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+}

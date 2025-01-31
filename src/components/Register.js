@@ -43,7 +43,9 @@ function Register() {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Registro exitoso");
+        alert(
+          "Registro exitoso. Tu cuenta está pendiente de aprobación por el administrador."
+        );
         window.location.href = "/";
       } else {
         alert(data.error || "Error en el registro");

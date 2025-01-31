@@ -1,40 +1,65 @@
-import React from "react";
-import { Link, useNavigate, Outlet } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./AdminDashboard.module.css";
 
 function AdminDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    pendingTasks: 0,
+    completedTasks: 0,
+    totalReports: 0,
+  });
 
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // Eliminar el token del almacenamiento local
-    alert("Has cerrado sesión correctamente.");
-    navigate("/"); // Redirigir a la página principal
-  };
+  useEffect(() => {
+    const fetchStats = async () => {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:5000/api/admin/stats", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      setStats(data);
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.headerTop}>
-          <h1>Panel del Administrador</h1>
-          <button onClick={handleLogout} className={styles.logoutButton}>
-            Cerrar Sesión
-          </button>
+      <h2>Panel de Administrador</h2>
+
+      {/* 🔹 Sección de Métricas */}
+      <div className={styles.metrics}>
+        <div className={styles.metricCard}>
+          <h3>Usuarios Registrados</h3>
+          <p>{stats.totalUsers}</p>
         </div>
-        <nav className={styles.nav}>
-          <Link to="/admin/users" className={styles.navLink}>
-            Gestión de Usuarios
-          </Link>
-          <Link to="/admin/tasks" className={styles.navLink}>
-            Gestión de Tareas
-          </Link>
-          <Link to="/admin/reports" className={styles.navLink}>
-            Reportes y Estadísticas
-          </Link>
-        </nav>
-      </header>
-      <main className={styles.content}>
-        <Outlet /> {/* Renderizará las vistas anidadas */}
-      </main>
+        <div className={styles.metricCard}>
+          <h3>Tareas Pendientes</h3>
+          <p>{stats.pendingTasks}</p>
+        </div>
+        <div className={styles.metricCard}>
+          <h3>Tareas Completadas</h3>
+          <p>{stats.completedTasks}</p>
+        </div>
+        <div className={styles.metricCard}>
+          <h3>Reportes Generados</h3>
+          <p>{stats.totalReports}</p>
+        </div>
+      </div>
+
+      {/* 🔹 Accesos Directos */}
+      <div className={styles.quickAccess}>
+        <button onClick={() => navigate("/admin/users")}>
+          Gestión de Usuarios
+        </button>
+        <button onClick={() => navigate("/admin/tasks")}>
+          Gestión de Tareas
+        </button>
+        <button onClick={() => navigate("/admin/reports")}>
+          Reportes y Estadísticas
+        </button>
+      </div>
     </div>
   );
 }

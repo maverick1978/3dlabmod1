@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // Importamos useNavigate para redirigir
+import { useNavigate } from "react-router-dom";
 import styles from "./UserManagement.module.css";
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
-  const [editingUser, setEditingUser] = useState(null); // Usuario en edición
+  const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
     user: "",
     email: "",
     role: "",
     password: "",
   });
-  const navigate = useNavigate(); // Hook para redirigir
+  const navigate = useNavigate();
+  const [search, setSearch] = useState(""); // Estado para la búsqueda
 
-  // Cargar usuarios desde el backend
+  // Cargar usuarios desde la base de datos
   useEffect(() => {
     const fetchUsers = async () => {
       const token = localStorage.getItem("token");
@@ -26,6 +27,39 @@ function UserManagement() {
 
     fetchUsers();
   }, []);
+
+  // Filtrar usuarios según la búsqueda
+  const filteredUsers = users.filter(
+    (user) =>
+      user.user.toLowerCase().includes(search.toLowerCase()) ||
+      user.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Aprobar o desaprobar usuario
+  const handleApproveToggle = async (id, currentStatus) => {
+    const token = localStorage.getItem("token");
+    const newStatus = currentStatus === 1 ? 0 : 1; // Cambia el estado
+
+    const response = await fetch(
+      `http://localhost:5000/api/users/${id}/approve`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ approved: newStatus }),
+      }
+    );
+
+    if (response.ok) {
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === id ? { ...user, approved: newStatus } : user
+        )
+      );
+    }
+  };
 
   // Manejar cambios en el formulario
   const handleInputChange = (e) => {
@@ -51,7 +85,7 @@ function UserManagement() {
     setUsers((prev) =>
       prev.map((user) =>
         user.id === editingUser
-          ? { ...user, ...formData, password: undefined } // No actualizar la contraseña en el frontend
+          ? { ...user, ...formData, password: undefined }
           : user
       )
     );
@@ -85,34 +119,43 @@ function UserManagement() {
   return (
     <div className={styles.container}>
       <h2>Gestión de Usuarios</h2>
+
+      {/* 🔍 Barra de búsqueda */}
+      <input
+        type="text"
+        placeholder="Buscar usuario..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className={styles.searchBar}
+      />
+
       <table className={styles.table}>
         <thead>
           <tr>
             <th>Usuario</th>
             <th>Email</th>
             <th>Rol</th>
+            <th>Estado</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <tr key={user.id}>
               <td>{user.user}</td>
               <td>{user.email}</td>
+              <td>{user.role}</td>
               <td>
-                <select
-                  value={user.role}
-                  onChange={(e) =>
-                    handleInputChange({
-                      target: { name: "role", value: e.target.value },
-                    })
+                <button
+                  onClick={() => handleApproveToggle(user.id, user.approved)}
+                  className={
+                    user.approved === 1
+                      ? styles.disapproveButton
+                      : styles.approveButton
                   }
-                  disabled={editingUser !== user.id}
                 >
-                  <option value="Estudiante">Estudiante</option>
-                  <option value="Educador">Educador</option>
-                  <option value="administrador">Administrador</option>
-                </select>
+                  {user.approved === 1 ? "Desaprobar" : "Aprobar"}
+                </button>
               </td>
               <td>
                 {editingUser === user.id ? (
@@ -197,7 +240,6 @@ function UserManagement() {
         </div>
       )}
 
-      {/* Botón para regresar al menú principal */}
       <button
         className={styles.backButton}
         onClick={() => navigate("/admin/dashboard")}
