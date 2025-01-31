@@ -93,6 +93,17 @@ const createTables = () => {
     )
   `);
 
+  // Agregar tabla de clases
+  db.run(`
+  CREATE TABLE IF NOT EXISTS classes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    grade TEXT NOT NULL,
+    educator_id INTEGER,
+    FOREIGN KEY (educator_id) REFERENCES users(id)
+  )
+`);
+
   db.run(
     `
   CREATE TABLE IF NOT EXISTS notifications (
@@ -623,6 +634,110 @@ app.delete("/api/tasks/:id", (req, res) => {
       res.json({ message: "Tarea eliminada correctamente" });
     }
   });
+});
+
+// Agregar tabla de clases
+db.run(`
+  CREATE TABLE IF NOT EXISTS classes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    grade TEXT NOT NULL,
+    educator_id INTEGER,
+    FOREIGN KEY (educator_id) REFERENCES users(id)
+  )
+`);
+
+// Endpoint para crear una clase
+app.post("/api/classes", verifyRole("admin"), (req, res) => {
+  const { name, grade, educator_id } = req.body;
+
+  db.run(
+    "INSERT INTO classes (name, grade, educator_id) VALUES (?, ?, ?)",
+    [name, grade, educator_id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: "Error al crear la clase" });
+      }
+      res.status(201).json({ id: this.lastID, name, grade, educator_id });
+    }
+  );
+});
+
+// Endpoint para obtener todas las clases
+app.get("/api/classes", verifyRole("admin"), (req, res) => {
+  db.all("SELECT * FROM classes", [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al obtener las clases" });
+    }
+    res.json(rows);
+  });
+});
+
+// Endpoint para actualizar una clase
+app.put("/api/classes/:id", verifyRole("admin"), (req, res) => {
+  const { id } = req.params;
+  const { name, grade, educator_id } = req.body;
+
+  db.run(
+    "UPDATE classes SET name = ?, grade = ?, educator_id = ? WHERE id = ?",
+    [name, grade, educator_id, id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: "Error al actualizar la clase" });
+      }
+      res.json({ message: "Clase actualizada correctamente" });
+    }
+  );
+});
+
+// Endpoint para eliminar una clase
+app.delete("/api/classes/:id", verifyRole("admin"), (req, res) => {
+  const { id } = req.params;
+
+  db.run("DELETE FROM classes WHERE id = ?", [id], function (err) {
+    if (err) {
+      return res.status(500).json({ error: "Error al eliminar la clase" });
+    }
+    res.json({ message: "Clase eliminada correctamente" });
+  });
+});
+
+// Endpoint para asignar estudiantes a una clase
+app.post("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
+  const { classId } = req.params;
+  const { student_id } = req.body;
+
+  db.run(
+    "INSERT INTO class_students (class_id, student_id) VALUES (?, ?)",
+    [classId, student_id],
+    function (err) {
+      if (err) {
+        return res
+          .status(500)
+          .json({ error: "Error al asignar estudiante a la clase" });
+      }
+      res.json({ message: "Estudiante asignado correctamente" });
+    }
+  );
+});
+
+// Endpoint para obtener los estudiantes de una clase
+app.get("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
+  const { classId } = req.params;
+
+  db.all(
+    `SELECT users.id, users.user, users.email 
+     FROM users 
+     JOIN class_students ON users.id = class_students.student_id
+     WHERE class_students.class_id = ?`,
+    [classId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al obtener estudiantes" });
+      }
+      res.json(rows);
+    }
+  );
 });
 
 // Iniciar el servidor
