@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import styles from "./AdminDashboard.module.css";
 
 function AdminDashboard() {
@@ -9,6 +10,7 @@ function AdminDashboard() {
     pendingTasks: 0,
     completedTasks: 0,
     totalReports: 0,
+    totalClasses: 0,
   });
 
   useEffect(() => {
@@ -33,7 +35,10 @@ function AdminDashboard() {
   return (
     <div className={styles.container}>
       <h2>Panel de Administrador</h2>
-
+      <nav className={styles.nav}>
+        <Link to="/admin/classes" className={styles.navLink}></Link>{" "}
+        {/* Nuevo enlace */}
+      </nav>
       {/* 🔹 Sección de Métricas */}
       <div className={styles.metrics}>
         <div className={styles.metricCard}>
@@ -43,6 +48,10 @@ function AdminDashboard() {
         <div className={styles.metricCard}>
           <h3>Tareas Pendientes</h3>
           <p>{stats.pendingTasks}</p>
+        </div>
+        <div className={styles.metricCard}>
+          <h3>Gestión de Clases</h3>
+          <p>{stats.totalClasses}</p>
         </div>
         <div className={styles.metricCard}>
           <h3>Tareas Completadas</h3>
@@ -61,6 +70,9 @@ function AdminDashboard() {
         </button>
         <button onClick={() => navigate("/admin/tasks")}>
           Gestión de Tareas
+        </button>
+        <button onClick={() => navigate("/admin/classes")}>
+          Gestión de clases
         </button>
         <button onClick={() => navigate("/admin/reports")}>
           Reportes y Estadísticas

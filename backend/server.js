@@ -554,6 +554,7 @@ app.get("/api/admin/stats", verifyRole("admin"), (req, res) => {
   const queryUsers = "SELECT COUNT(*) AS totalUsers FROM users";
   const queryPendingTasks =
     "SELECT COUNT(*) AS pendingTasks FROM tasks WHERE status = 'Pendiente'";
+  const queryClasses = "SELECT COUNT(*) AS totalClasses FROM classes";
   const queryCompletedTasks =
     "SELECT COUNT(*) AS completedTasks FROM tasks WHERE status = 'Completada'";
   const queryReports = "SELECT COUNT(*) AS totalReports FROM reports";
@@ -561,13 +562,16 @@ app.get("/api/admin/stats", verifyRole("admin"), (req, res) => {
   db.serialize(() => {
     db.get(queryUsers, (err, usersResult) => {
       db.get(queryPendingTasks, (err, pendingTasksResult) => {
-        db.get(queryCompletedTasks, (err, completedTasksResult) => {
-          db.get(queryReports, (err, reportsResult) => {
-            res.json({
-              totalUsers: usersResult?.totalUsers || 0,
-              pendingTasks: pendingTasksResult?.pendingTasks || 0,
-              completedTasks: completedTasksResult?.completedTasks || 0,
-              totalReports: reportsResult?.totalReports || 0,
+        db.get(queryClasses, (err, classesResult) => {
+          db.get(queryCompletedTasks, (err, completedTasksResult) => {
+            db.get(queryReports, (err, reportsResult) => {
+              res.json({
+                totalUsers: usersResult?.totalUsers || 0,
+                pendingTasks: pendingTasksResult?.pendingTasks || 0,
+                totalClasses: classesResult?.totalClasses || 0,
+                completedTasks: completedTasksResult?.completedTasks || 0,
+                totalReports: reportsResult?.totalReports || 0,
+              });
             });
           });
         });

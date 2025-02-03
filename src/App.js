@@ -9,6 +9,7 @@ import AdminDashboard from "./components/admin/AdminDashboard";
 import UserManagement from "./components/admin/UserManagement";
 import TaskManagement from "./components/admin/TaskManagement";
 import Reports from "./components/admin/Reports";
+import ClassManagement from "./components/dashboard/ClassManagement";
 
 function App() {
   return (
@@ -17,7 +18,8 @@ function App() {
         {/* Rutas públicas */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/classes" element={<ClassManagement />} />
         {/* Rutas protegidas para dashboard genérico */}
         <Route path="/dashboard/*" element={<Dashboard />} />
 
