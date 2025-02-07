@@ -9,7 +9,7 @@ import AdminDashboard from "./components/admin/AdminDashboard";
 import UserManagement from "./components/admin/UserManagement";
 import TaskManagement from "./components/admin/TaskManagement";
 import Reports from "./components/admin/Reports";
-import ClassManagement from "./components/dashboard/ClassManagement";
+import ClassManagement from "./components/admin/ClassManagement"; // ✅ Corregido
 
 function App() {
   return (
@@ -18,8 +18,7 @@ function App() {
         {/* Rutas públicas */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/classes" element={<ClassManagement />} />
+
         {/* Rutas protegidas para dashboard genérico */}
         <Route path="/dashboard/*" element={<Dashboard />} />
 
@@ -30,6 +29,8 @@ function App() {
           <Route path="users" element={<UserManagement />} />
           <Route path="tasks" element={<TaskManagement />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="classes" element={<ClassManagement />} />{" "}
+          {/* ✅ Nueva ruta */}
         </Route>
 
         {/* Ruta por defecto para manejar no coincidencias */}
