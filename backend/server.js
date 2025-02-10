@@ -775,13 +775,19 @@ app.delete("/api/classes/remove/:id", (req, res) => {
   });
 });
 
-app.get("/api/classes", verifyRole("admin"), (req, res) => {
-  db.all("SELECT * FROM classes", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: "Error al obtener las clases" });
+app.post("/api/classes", verifyRole("admin"), (req, res) => {
+  const { name, grade, educator_id } = req.body;
+
+  db.run(
+    "INSERT INTO classes (name, grade, educator_id) VALUES (?, ?, ?)",
+    [name, grade, educator_id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: "Error al crear la clase" });
+      }
+      res.status(201).json({ id: this.lastID, name, grade, educator_id });
     }
-    res.json(rows);
-  });
+  );
 });
 
 // Endpoint para actualizar una clase
@@ -796,7 +802,20 @@ app.put("/api/classes/:id", verifyRole("admin"), (req, res) => {
       if (err) {
         return res.status(500).json({ error: "Error al actualizar la clase" });
       }
-      res.json({ message: "Clase actualizada correctamente" });
+
+      // Obtener la clase actualizada y devolverla
+      db.get(
+        "SELECT * FROM classes WHERE id = ?",
+        [id],
+        (err, updatedClass) => {
+          if (err) {
+            return res
+              .status(500)
+              .json({ error: "Error al obtener la clase actualizada" });
+          }
+          res.json(updatedClass);
+        }
+      );
     }
   );
 });
