@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import styles from "./Login.module.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser, faLock } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
-  const [user, setUser] = useState(""); // Cambiar "username" a "user"
+  const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,10 +16,9 @@ function Login() {
       const response = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user, password }), // Enviar "user" y "password"
+        body: JSON.stringify({ user, password }),
       });
 
-      // Validar si el servidor responde correctamente
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error("Respuesta inesperada del servidor.");
@@ -26,11 +27,24 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // Guardar el token en el almacenamiento local
         localStorage.setItem("token", data.token);
         alert("Inicio de sesión exitoso");
-        console.log("Datos del usuario:", data);
-        window.location.href = "/admin/dashboard"; // Redirigir al dashboard del administrador
+
+        // Redirigir según el rol del usuario
+        switch (data.role) {
+          case "admin":
+            navigate("/admin/dashboard");
+            break;
+          case "Estudiante":
+            navigate("/dashboard/student");
+            break;
+          case "Educador":
+            navigate("/dashboard");
+            break;
+          default:
+            alert("Rol desconocido. Contacte al administrador.");
+            break;
+        }
       } else {
         alert(data.error || "Error al iniciar sesión");
       }
@@ -49,7 +63,7 @@ function Login() {
             <FontAwesomeIcon icon={faUser} className={styles.icon} />
             <input
               type="text"
-              value={user} // Cambiado de "username" a "user"
+              value={user}
               onChange={(e) => setUser(e.target.value)}
               placeholder="Usuario"
               required

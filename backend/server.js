@@ -129,6 +129,17 @@ const createTables = () => {
     }
   );
 };
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS class_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_id) REFERENCES classes(id),
+    FOREIGN KEY (student_id) REFERENCES users(id)
+  );
+`);
 // Seed inicial para notificaciones y creación del administrador
 const seedNotifications = async () => {
   const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?, ?)`;
@@ -640,13 +651,80 @@ app.post("/api/classes", verifyRole(["admin", "educador"]), (req, res) => {
 });
 
 // Endpoint para obtener todas las clases
-app.get("/api/classes", verifyRole("admin, educador"), (req, res) => {
+app.get("/api/classes", verifyRole("admin"), (req, res) => {
   db.all("SELECT * FROM classes", [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: "Error al obtener las clases" });
     }
     res.json(rows);
   });
+});
+
+//Asignar un estudiante a una clase
+app.post("/api/classes/assign", (req, res) => {
+  const { class_id, student_id } = req.body;
+
+  db.run(
+    "INSERT INTO class_assignments (class_id, student_id) VALUES (?, ?)",
+    [class_id, student_id],
+    function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al asignar estudiante" });
+      } else {
+        res.status(201).json({ message: "Estudiante asignado con éxito" });
+      }
+    }
+  );
+});
+
+// eliminar estudiante de una clase
+app.delete("/api/classes/remove/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run("DELETE FROM class_assignments WHERE id = ?", [id], function (err) {
+    if (err) {
+      res.status(500).json({ error: "Error al eliminar asignación" });
+    } else {
+      res.json({ message: "Asignación eliminada con éxito" });
+    }
+  });
+});
+// obtener historial de clases
+app.get("/api/students/:id/history", (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT classes.name, class_assignments.assigned_at
+    FROM class_assignments
+    INNER JOIN classes ON class_assignments.class_id = classes.id
+    WHERE class_assignments.student_id = ?
+    ORDER BY assigned_at DESC;
+  `;
+
+  db.all(query, [id], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: "Error al obtener historial" });
+    } else {
+      res.json(rows);
+    }
+  });
+});
+
+// Editar la asignación de un estudiante
+app.put("/api/classes/update", (req, res) => {
+  const { id, new_class_id } = req.body;
+
+  db.run(
+    "UPDATE class_assignments SET class_id = ? WHERE id = ?",
+    [new_class_id, id],
+    function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al actualizar asignación" });
+      } else {
+        res.json({ message: "Asignación actualizada con éxito" });
+      }
+    }
+  );
 });
 
 // Endpoint para actualizar una clase

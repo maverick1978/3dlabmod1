@@ -12,6 +12,8 @@ function ClassManagement() {
     educator_id: "",
   });
   const [editingClass, setEditingClass] = useState(null);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
