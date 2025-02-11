@@ -5,7 +5,7 @@ import styles from "./ClassManagement.module.css";
 function ClassManagement() {
   const [classes, setClasses] = useState([]);
   const [educators, setEducators] = useState([]);
-  const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     grade: "",
@@ -17,55 +17,59 @@ function ClassManagement() {
   useEffect(() => {
     fetchClasses();
     fetchEducators();
-    fetchStudents();
   }, []);
 
-  // Obtener clases
-  const fetchClasses = async () => {
-    const token = localStorage.getItem("token");
-    const response = await fetch("http://localhost:5000/api/classes", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json();
-    setClasses(data);
-  };
-
-  // Obtener educadores
+  // Obtener lista de educadores
   const fetchEducators = async () => {
-    const token = localStorage.getItem("token");
-    const response = await fetch(
-      "http://localhost:5000/api/users?role=Educador",
-      {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        "http://localhost:5000/api/users?role=Educador",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error("Error al obtener educadores.");
+      const data = await response.json();
+      setEducators(data);
+    } catch (error) {
+      console.error("Error cargando educadores:", error);
+    }
+  };
+
+  // Obtener lista de clases con educador asignado
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:5000/api/classes", {
         headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const data = await response.json();
-    setEducators(data);
+      });
+      if (!response.ok) throw new Error("Error al obtener clases.");
+      const data = await response.json();
+      setClasses(data);
+    } catch (error) {
+      console.error("Error cargando clases:", error);
+    }
   };
 
-  // Obtener estudiantesrevisa
-  const fetchStudents = async () => {
-    const token = localStorage.getItem("token");
-    const response = await fetch(
-      "http://localhost:5000/api/users?role=Estudiante",
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const data = await response.json();
-    setStudents(data);
+  // Cargar datos en el formulario cuando se edita una clase
+  const startEditing = (classItem) => {
+    setEditingClass(classItem.id);
+    setFormData({
+      name: classItem.name,
+      grade: classItem.grade,
+      educator_id: classItem.educator_id || "", // ✅ Asegurar que educator_id esté presente
+    });
   };
 
-  // Manejar cambios en los inputs
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Crear o actualizar clase
+  // Guardar o actualizar clase con educador
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
+    if (!formData.name || !formData.grade || !formData.educator_id) {
+      alert("Todos los campos son obligatorios.");
+      return;
+    }
 
+    const token = localStorage.getItem("token");
     const url = editingClass
       ? `http://localhost:5000/api/classes/${editingClass}`
       : "http://localhost:5000/api/classes";
@@ -81,68 +85,73 @@ function ClassManagement() {
     });
 
     if (response.ok) {
-      fetchClasses();
+      fetchClasses(); // ✅ Recargar la lista de clases después de actualizar
       setEditingClass(null);
       setFormData({ name: "", grade: "", educator_id: "" });
+    } else {
+      alert("Error al guardar la clase.");
     }
   };
 
   // Eliminar clase
   const handleDelete = async (id) => {
     const token = localStorage.getItem("token");
-    await fetch(`http://localhost:5000/api/classes/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchClasses();
-  };
 
-  // Editar clase
-  const startEditing = (classItem) => {
-    setEditingClass(classItem.id);
-    setFormData({
-      name: classItem.name,
-      grade: classItem.grade,
-      educator_id: classItem.educator_id || "",
-    });
+    try {
+      const response = await fetch(`http://localhost:5000/api/classes/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        alert("Clase eliminada correctamente.");
+        fetchClasses();
+      } else {
+        throw new Error("Error al eliminar la clase.");
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
     <div className={styles.container}>
       <h2>Gestión de Clases</h2>
 
-      {/* Formulario para agregar/editar clases */}
-      <div className={styles.formContainer}>
+      {/* Formulario para crear/editar clases */}
+      <div className={styles.formGroup}>
+        <h3>{editingClass ? "Editar Clase" : "Crear Nueva Clase"}</h3>
+        <label>Nombre de la Clase:</label>
         <input
           type="text"
           name="name"
           value={formData.name}
-          onChange={handleInputChange}
-          placeholder="Nombre de la clase"
-          required
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
         />
+        <label>Grado:</label>
         <input
           type="text"
           name="grade"
           value={formData.grade}
-          onChange={handleInputChange}
-          placeholder="Grado"
-          required
+          onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
         />
+        <label>Educador:</label>
         <select
           name="educator_id"
           value={formData.educator_id}
-          onChange={handleInputChange}
+          onChange={(e) =>
+            setFormData({ ...formData, educator_id: e.target.value })
+          }
         >
           <option value="">Seleccionar Educador</option>
-          {educators.map((edu) => (
-            <option key={edu.id} value={edu.id}>
-              {edu.user}
+          {educators.map((educator) => (
+            <option key={educator.id} value={educator.id}>
+              {educator.user}
             </option>
           ))}
         </select>
-        <button onClick={handleSave}>
-          {editingClass ? "Actualizar Clase" : "Agregar Clase"}
+        <button onClick={handleSave} className={styles.assignButton}>
+          {editingClass ? "Actualizar Clase" : "Crear Clase"}
         </button>
       </div>
 
@@ -175,21 +184,7 @@ function ClassManagement() {
           ))}
         </tbody>
       </table>
-      {/* Mostrar la lista de estudiantes */}
-      {students.length > 0 ? (
-        <div>
-          <h3>Lista de Estudiantes</h3>
-          <ul>
-            {students.map((student) => (
-              <li key={student.id}>{student.name}</li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <p>No hay estudiantes registrados.</p>
-      )}
 
-      {/* Botón para regresar al menú principal */}
       <button
         className={styles.backButton}
         onClick={() => navigate("/admin/dashboard")}

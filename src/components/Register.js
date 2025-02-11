@@ -34,6 +34,7 @@ function Register() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: formData.name,
           username: formData.username,
           email: formData.email,
           password: formData.password,

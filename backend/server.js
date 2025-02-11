@@ -88,9 +88,12 @@ const createTables = () => {
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    progress INTEGER DEFAULT 0
-    )
+    email TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
   `);
 
   // Agregar tabla de clases
@@ -126,7 +129,6 @@ const createTables = () => {
     }
   );
 };
-
 // Seed inicial para notificaciones y creación del administrador
 const seedNotifications = async () => {
   const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?, ?)`;
@@ -140,61 +142,6 @@ const seedNotifications = async () => {
   const adminRole = "admin";
 
   db.serialize(() => {
-    // Notificaciones iniciales
-    db.run(query, [
-      "Nueva tarea asignada",
-      "Revisar la tarea de matemáticas.",
-      0,
-      "Tareas",
-    ]);
-    db.run(query, [
-      "Mensaje del administrador",
-      "El sistema se actualizará mañana.",
-      1,
-      "Mensajes",
-    ]);
-    db.run(
-      query,
-      [
-        "Calificación publicada",
-        "Ya puedes revisar tu última calificación.",
-        0,
-        "Calificaciones",
-      ],
-      (err) => {
-        if (!err) {
-          console.log("Notificaciones iniciales creadas.");
-        } else {
-          console.error(
-            "Error al insertar notificaciones iniciales:",
-            err.message
-          );
-        }
-      }
-    );
-
-    // Estudiantes iniciales
-    db.run(insertStudentsQuery, ["Juan Pérez", 80], (err) => {
-      if (err) {
-        console.error("Error al insertar estudiante Juan Pérez:", err.message);
-      }
-    });
-    db.run(insertStudentsQuery, ["María López", 60], (err) => {
-      if (err) {
-        console.error("Error al insertar estudiante María López:", err.message);
-      }
-    });
-    db.run(insertStudentsQuery, ["Carlos García", 90], (err) => {
-      if (err) {
-        console.error(
-          "Error al insertar estudiante Carlos García:",
-          err.message
-        );
-      } else {
-        console.log("Estudiantes insertados correctamente.");
-      }
-    });
-
     // Crear el usuario administrador si no existe
     db.get(
       "SELECT * FROM users WHERE user = ? OR email = ?",
@@ -229,33 +176,36 @@ app.post("/api/register", async (req, res) => {
   const { username, email, password, role } = req.body;
 
   try {
-    // Encriptar la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
     db.run(
       "INSERT INTO users (user, email, password, role) VALUES (?, ?, ?, ?)",
-      [username, email, hashedPassword, role || "user"],
+      [username, email, hashedPassword, role || "Estudiante"],
       function (err) {
         if (err) {
-          res.status(400).json({
-            error: "Error al registrar usuario: " + err.message,
-          });
-        } else {
-          res.status(201).json({
-            id: this.lastID,
-            username,
-            email,
-            role: role || "user",
-          });
+          return res.status(400).json({ error: "Error al registrar usuario" });
         }
+
+        // Si es Estudiante, agregarlo a la tabla `students`
+        if (role === "Estudiante") {
+          db.run("INSERT INTO students (name, progress) VALUES (?, ?)", [
+            username,
+            0,
+          ]);
+        }
+
+        res.status(201).json({
+          id: this.lastID,
+          username,
+          email,
+          role: role || "Estudiante",
+        });
       }
     );
   } catch (error) {
     res.status(500).json({ error: "Error del servidor al registrar usuario" });
   }
 });
-
-// Endpoint Iniciar sesión
 // Endpoint Iniciar sesión
 app.post("/api/login", async (req, res) => {
   const { user, password } = req.body;
@@ -437,15 +387,27 @@ io.on("connection", (socket) => {
 
 // Obtener lista de estudiantes
 app.get("/api/students", (req, res) => {
-  db.all("SELECT * FROM students", [], (err, rows) => {
+  db.all("SELECT * FROM users WHERE role = 'Estudiante'", [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: "Error al obtener estudiantes" });
-    } else {
-      res.json(rows);
+      return res.status(500).json({ error: "Error al obtener estudiantes" });
     }
+    res.json(rows);
   });
 });
 
+/* app.get("/api/students", verifyRole(["admin", "educador"]), (req, res) => {
+  db.all(
+    "SELECT id, user, email FROM users WHERE role = 'Estudiante'",
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al obtener estudiantes" });
+      }
+      res.json(rows);
+    }
+  );
+});
+ */
 app.get("/api/users", verifyRole("admin"), (req, res) => {
   db.all(
     "SELECT id, user, email, role, approved FROM users",
@@ -651,24 +613,34 @@ db.run(`
   )
 `);
 
+db.run(`
+  CREATE TABLE IF NOT EXISTS class_students (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    class_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+  );
+`);
+
 // Endpoint para crear una clase
-app.post("/api/classes", verifyRole("admin"), (req, res) => {
-  const { name, grade, educator_id } = req.body;
+app.post("/api/classes", verifyRole(["admin", "educador"]), (req, res) => {
+  const { name, grade } = req.body;
 
   db.run(
-    "INSERT INTO classes (name, grade, educator_id) VALUES (?, ?, ?)",
-    [name, grade, educator_id],
+    "INSERT INTO classes (name, grade) VALUES (?, ?)",
+    [name, grade],
     function (err) {
       if (err) {
         return res.status(500).json({ error: "Error al crear la clase" });
       }
-      res.status(201).json({ id: this.lastID, name, grade, educator_id });
+      res.json({ id: this.lastID, name, grade });
     }
   );
 });
 
 // Endpoint para obtener todas las clases
-app.get("/api/classes", verifyRole("admin"), (req, res) => {
+app.get("/api/classes", verifyRole("admin, educador"), (req, res) => {
   db.all("SELECT * FROM classes", [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: "Error al obtener las clases" });
@@ -678,36 +650,80 @@ app.get("/api/classes", verifyRole("admin"), (req, res) => {
 });
 
 // Endpoint para actualizar una clase
-app.put("/api/classes/:id", verifyRole("admin"), (req, res) => {
+app.put("/api/classes/:id", (req, res) => {
   const { id } = req.params;
   const { name, grade, educator_id } = req.body;
+
+  if (!name || !grade || !educator_id) {
+    return res.status(400).json({ error: "Todos los campos son obligatorios" });
+  }
 
   db.run(
     "UPDATE classes SET name = ?, grade = ?, educator_id = ? WHERE id = ?",
     [name, grade, educator_id, id],
     function (err) {
       if (err) {
-        return res.status(500).json({ error: "Error al actualizar la clase" });
+        res.status(500).json({ error: "Error al actualizar la clase" });
+      } else {
+        res.json({ message: "Clase actualizada correctamente" });
       }
-      res.json({ message: "Clase actualizada correctamente" });
     }
   );
 });
 
 // Endpoint para eliminar una clase
-app.delete("/api/classes/:id", verifyRole("admin"), (req, res) => {
-  const { id } = req.params;
+app.delete(
+  "/api/classes/:id",
+  verifyRole(["admin", "educador"]),
+  (req, res) => {
+    const { id } = req.params;
 
-  db.run("DELETE FROM classes WHERE id = ?", [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: "Error al eliminar la clase" });
-    }
-    res.json({ message: "Clase eliminada correctamente" });
-  });
-});
+    db.run("DELETE FROM classes WHERE id = ?", [id], function (err) {
+      if (err) {
+        return res.status(500).json({ error: "Error al eliminar la clase" });
+      }
+      res.json({ message: "Clase eliminada correctamente" });
+    });
+  }
+);
 
+app.post(
+  "/api/classes/:classId/students",
+  verifyRole(["admin", "educador"]),
+  (req, res) => {
+    const { classId } = req.params;
+    const { student_id } = req.body;
+
+    db.get("SELECT role FROM users WHERE id = ?", [student_id], (err, row) => {
+      if (err) {
+        return res
+          .status(500)
+          .json({ error: "Error al verificar el rol del usuario" });
+      }
+
+      if (!row || row.role !== "Estudiante") {
+        return res.status(403).json({
+          error: "Solo los estudiantes pueden ser asignados a una clase",
+        });
+      }
+
+      db.run(
+        "INSERT INTO class_students (class_id, student_id) VALUES (?, ?)",
+        [classId, student_id],
+        function (err) {
+          if (err) {
+            return res
+              .status(500)
+              .json({ error: "Error al asignar estudiante a la clase" });
+          }
+          res.json({ message: "Estudiante asignado correctamente" });
+        }
+      );
+    });
+  }
+);
 // Endpoint para asignar estudiantes a una clase
-app.post("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
+/* app.post("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
   const { classId } = req.params;
   const { student_id } = req.body;
 
@@ -723,7 +739,7 @@ app.post("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
       res.json({ message: "Estudiante asignado correctamente" });
     }
   );
-});
+}); */
 
 // Endpoint para obtener los estudiantes de una clase
 app.get("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
@@ -740,6 +756,104 @@ app.get("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
         return res.status(500).json({ error: "Error al obtener estudiantes" });
       }
       res.json(rows);
+    }
+  );
+});
+
+app.get("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
+  const { classId } = req.params;
+
+  db.all(
+    `SELECT users.id, users.user, users.email 
+     FROM users 
+     JOIN class_students ON users.id = class_students.student_id
+     WHERE class_students.class_id = ?`,
+    [classId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al obtener estudiantes" });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.delete(
+  "/api/classes/:classId/students/:studentId",
+  verifyRole("admin"),
+  (req, res) => {
+    const { classId, studentId } = req.params;
+
+    db.run(
+      "DELETE FROM class_students WHERE class_id = ? AND student_id = ?",
+      [classId, studentId],
+      function (err) {
+        if (err) {
+          return res
+            .status(500)
+            .json({ error: "Error al remover estudiante de la clase" });
+        }
+        res.json({ message: "Estudiante removido correctamente" });
+      }
+    );
+  }
+);
+
+app.get("/api/class_student/:class_id", (req, res) => {
+  const { class_id } = req.params;
+
+  db.all(
+    `SELECT students.id, students.user FROM class_student 
+    JOIN students ON class_student.student_id = students.id 
+    WHERE class_student.class_id = ?`,
+    [class_id],
+    (err, rows) => {
+      if (err) {
+        res
+          .status(500)
+          .json({ error: "Error al obtener los estudiantes de la clase" });
+      } else {
+        res.json(rows);
+      }
+    }
+  );
+});
+
+app.get("/api/students/:studentId/classes", verifyRole("admin"), (req, res) => {
+  const { studentId } = req.params;
+
+  db.all(
+    `SELECT classes.id, classes.name, classes.grade 
+     FROM classes 
+     JOIN class_students ON classes.id = class_students.class_id
+     WHERE class_students.student_id = ?`,
+    [studentId],
+    (err, rows) => {
+      if (err) {
+        return res
+          .status(500)
+          .json({ error: "Error al obtener historial de clases" });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.post("/api/class_students", (req, res) => {
+  const { class_id, student_id } = req.body;
+  if (!class_id || !student_id) {
+    return res.status(400).json({ error: "Faltan datos" });
+  }
+
+  db.run(
+    "INSERT INTO class_student (class_id, student_id) VALUES (?, ?)",
+    [class_id, student_id],
+    function (err) {
+      if (err) {
+        res.status(500).json({ error: "Error al asignar estudiante" });
+      } else {
+        res.status(201).json({ message: "Estudiante asignado correctamente" });
+      }
     }
   );
 });
