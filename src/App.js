@@ -26,10 +26,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/classes" element={<ClassManagement />} />
-
           {/* Rutas protegidas para dashboard genérico */}
           <Route path="/dashboard/*" element={<Dashboard />} />
-
           {/* Rutas protegidas para administrador */}
           <Route
             path="/admin"
@@ -41,7 +39,6 @@ function App() {
             <Route path="tasks" element={<TaskManagement />} />
             <Route path="reports" element={<Reports />} />
           </Route>
-
           {/* Ruta por defecto para manejar no coincidencias */}
           <Route path="*" element={<div>Ruta no encontrada</div>} />
         </Routes>

@@ -129,31 +129,20 @@ const createTables = () => {
     }
   );
 };
-
-db.run(`
-  CREATE TABLE IF NOT EXISTS class_assignments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    class_id INTEGER NOT NULL,
-    student_id INTEGER NOT NULL,
-    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (class_id) REFERENCES classes(id),
-    FOREIGN KEY (student_id) REFERENCES users(id)
-  );
-`);
-// Seed inicial para notificaciones y creación del administrador
+// Seed inicial para notificaciones y creación del admin
 const seedNotifications = async () => {
   const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?, ?)`;
   const insertStudentsQuery =
     "INSERT INTO students (name, progress) VALUES (?, ?)";
 
-  // Generar la contraseña encriptada para el administrador
+  // Generar la contraseña encriptada para el admin
   const adminUser = "admin";
   const adminEmail = "admin@example.com";
   const adminPassword = await bcrypt.hash("admin123", 10); // Contraseña encriptada
   const adminRole = "admin";
 
   db.serialize(() => {
-    // Crear el usuario administrador si no existe
+    // Crear el usuario admin si no existe
     db.get(
       "SELECT * FROM users WHERE user = ? OR email = ?",
       [adminUser, adminEmail],
@@ -196,15 +185,6 @@ app.post("/api/register", async (req, res) => {
         if (err) {
           return res.status(400).json({ error: "Error al registrar usuario" });
         }
-
-        // Si es Estudiante, agregarlo a la tabla `students`
-        if (role === "Estudiante") {
-          db.run("INSERT INTO students (name, progress) VALUES (?, ?)", [
-            username,
-            0,
-          ]);
-        }
-
         res.status(201).json({
           id: this.lastID,
           username,
@@ -406,19 +386,6 @@ app.get("/api/students", (req, res) => {
   });
 });
 
-/* app.get("/api/students", verifyRole(["admin", "educador"]), (req, res) => {
-  db.all(
-    "SELECT id, user, email FROM users WHERE role = 'Estudiante'",
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ error: "Error al obtener estudiantes" });
-      }
-      res.json(rows);
-    }
-  );
-});
- */
 app.get("/api/users", verifyRole("admin"), (req, res) => {
   db.all(
     "SELECT id, user, email, role, approved FROM users",
@@ -624,16 +591,6 @@ db.run(`
   )
 `);
 
-db.run(`
-  CREATE TABLE IF NOT EXISTS class_students (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    class_id INTEGER NOT NULL,
-    student_id INTEGER NOT NULL,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
-  );
-`);
-
 // Endpoint para crear una clase
 app.post("/api/classes", verifyRole(["admin", "educador"]), (req, res) => {
   const { name, grade } = req.body;
@@ -651,80 +608,13 @@ app.post("/api/classes", verifyRole(["admin", "educador"]), (req, res) => {
 });
 
 // Endpoint para obtener todas las clases
-app.get("/api/classes", verifyRole("admin"), (req, res) => {
+app.get("/api/classes", verifyRole("admin, educador"), (req, res) => {
   db.all("SELECT * FROM classes", [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: "Error al obtener las clases" });
     }
     res.json(rows);
   });
-});
-
-//Asignar un estudiante a una clase
-app.post("/api/classes/assign", (req, res) => {
-  const { class_id, student_id } = req.body;
-
-  db.run(
-    "INSERT INTO class_assignments (class_id, student_id) VALUES (?, ?)",
-    [class_id, student_id],
-    function (err) {
-      if (err) {
-        res.status(500).json({ error: "Error al asignar estudiante" });
-      } else {
-        res.status(201).json({ message: "Estudiante asignado con éxito" });
-      }
-    }
-  );
-});
-
-// eliminar estudiante de una clase
-app.delete("/api/classes/remove/:id", (req, res) => {
-  const { id } = req.params;
-
-  db.run("DELETE FROM class_assignments WHERE id = ?", [id], function (err) {
-    if (err) {
-      res.status(500).json({ error: "Error al eliminar asignación" });
-    } else {
-      res.json({ message: "Asignación eliminada con éxito" });
-    }
-  });
-});
-// obtener historial de clases
-app.get("/api/students/:id/history", (req, res) => {
-  const { id } = req.params;
-
-  const query = `
-    SELECT classes.name, class_assignments.assigned_at
-    FROM class_assignments
-    INNER JOIN classes ON class_assignments.class_id = classes.id
-    WHERE class_assignments.student_id = ?
-    ORDER BY assigned_at DESC;
-  `;
-
-  db.all(query, [id], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: "Error al obtener historial" });
-    } else {
-      res.json(rows);
-    }
-  });
-});
-
-// Editar la asignación de un estudiante
-app.put("/api/classes/update", (req, res) => {
-  const { id, new_class_id } = req.body;
-
-  db.run(
-    "UPDATE class_assignments SET class_id = ? WHERE id = ?",
-    [new_class_id, id],
-    function (err) {
-      if (err) {
-        res.status(500).json({ error: "Error al actualizar asignación" });
-      } else {
-        res.json({ message: "Asignación actualizada con éxito" });
-      }
-    }
-  );
 });
 
 // Endpoint para actualizar una clase
@@ -881,21 +771,21 @@ app.get("/api/class_student/:class_id", (req, res) => {
   const { class_id } = req.params;
 
   db.all(
-    `SELECT students.id, students.user FROM class_student 
-    JOIN students ON class_student.student_id = students.id 
-    WHERE class_student.class_id = ?`,
+    `SELECT users.id, users.user as name 
+     FROM class_students
+     JOIN users ON class_students.student_id = users.id 
+     WHERE class_students.class_id = ?`,  // CORREGIDO: class_students en lugar de class_student
     [class_id],
     (err, rows) => {
       if (err) {
-        res
-          .status(500)
-          .json({ error: "Error al obtener los estudiantes de la clase" });
+        res.status(500).json({ error: "Error al obtener los estudiantes de la clase" });
       } else {
         res.json(rows);
       }
     }
   );
 });
+
 
 app.get("/api/students/:studentId/classes", verifyRole("admin"), (req, res) => {
   const { studentId } = req.params;

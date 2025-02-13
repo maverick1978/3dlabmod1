@@ -5,15 +5,12 @@ import styles from "./ClassManagement.module.css";
 function ClassManagement() {
   const [classes, setClasses] = useState([]);
   const [educators, setEducators] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     grade: "",
     educator_id: "",
   });
   const [editingClass, setEditingClass] = useState(null);
-  const [selectedClass, setSelectedClass] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
