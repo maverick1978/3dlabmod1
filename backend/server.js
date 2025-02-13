@@ -774,18 +774,19 @@ app.get("/api/class_student/:class_id", (req, res) => {
     `SELECT users.id, users.user as name 
      FROM class_students
      JOIN users ON class_students.student_id = users.id 
-     WHERE class_students.class_id = ?`,  // CORREGIDO: class_students en lugar de class_student
+     WHERE class_students.class_id = ?`, // CORREGIDO: class_students en lugar de class_student
     [class_id],
     (err, rows) => {
       if (err) {
-        res.status(500).json({ error: "Error al obtener los estudiantes de la clase" });
+        res
+          .status(500)
+          .json({ error: "Error al obtener los estudiantes de la clase" });
       } else {
         res.json(rows);
       }
     }
   );
 });
-
 
 app.get("/api/students/:studentId/classes", verifyRole("admin"), (req, res) => {
   const { studentId } = req.params;
@@ -822,6 +823,48 @@ app.post("/api/class_students", (req, res) => {
       } else {
         res.status(201).json({ message: "Estudiante asignado correctamente" });
       }
+    }
+  );
+});
+
+app.get("/api/student/info", verifyRole("Estudiante"), (req, res) => {
+  const studentId = req.user.id;
+  db.get("SELECT * FROM users WHERE id = ?", [studentId], (err, row) => {
+    if (err) {
+      return res
+        .status(500)
+        .json({ error: "Error al obtener datos del estudiante" });
+    }
+    res.json(row);
+  });
+});
+
+app.get("/api/student/classes", verifyRole("Estudiante"), (req, res) => {
+  const studentId = req.user.id;
+  db.all(
+    `SELECT classes.* FROM class_student 
+     JOIN classes ON class_student.class_id = classes.id 
+     WHERE class_student.student_id = ?`,
+    [studentId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al obtener las clases" });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+app.get("/api/student/tasks", verifyRole("Estudiante"), (req, res) => {
+  const studentId = req.user.id;
+  db.all(
+    `SELECT * FROM tasks WHERE assigned_to = ?`,
+    [studentId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: "Error al obtener tareas" });
+      }
+      res.json(rows);
     }
   );
 });

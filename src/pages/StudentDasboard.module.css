@@ -37,10 +37,25 @@
     text-decoration: underline;
 }
 
-/* Contenido principal */
-.content {
-    flex: 1;
+/* Distribución en columnas */
+.contentGrid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
     padding: 2rem;
+}
+
+/* Columnas */
+.leftColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.rightColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 /* Tarjetas */
@@ -49,11 +64,6 @@
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
-    transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-    transform: scale(1.02);
 }
 
 /* Botones */
@@ -71,28 +81,19 @@ button:hover {
     background-color: #2980b9;
 }
 
-.logout-button {
+.logoutButton {
     background-color: #e74c3c;
     padding: 10px 15px;
     border-radius: 5px;
 }
 
-.logout-button:hover {
+.logoutButton:hover {
     background-color: #c0392b;
 }
 
 /* Responsividad */
 @media (max-width: 768px) {
-    .navLinks {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .container {
-        padding: 1rem;
-    }
-
-    .content {
-        padding: 1rem;
+    .contentGrid {
+        grid-template-columns: 1fr;
     }
 }
