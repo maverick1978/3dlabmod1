@@ -1,0 +1,139 @@
+.profileContainer {
+    max-width: 600px;
+    margin: auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 22px;
+}
+
+/* 🔹 Estilo de los inputs */
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.inputField {
+    width: 100%;
+    max-height: 30px;
+    /* Limita la altura a 30px */
+    padding: 5px 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.createButton {
+    background: #007bff;
+    color: white;
+    padding: 8px 15px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.createButton:hover {
+    background: #0056b3;
+}
+
+/* 🔹 Estilo de la lista de perfiles */
+.profileList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.profileItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 5px solid #007bff;
+    transition: 0.3s;
+}
+
+.profileItem:hover {
+    background: #e9ecef;
+}
+
+/* 🔹 Información del perfil */
+.profileItem div {
+    flex-grow: 1;
+}
+
+.profileItem strong {
+    font-size: 16px;
+    color: #333;
+}
+
+.profileItem p {
+    font-size: 13px;
+    color: #666;
+    margin: 5px 0 0;
+}
+
+/* 🔹 Botón de eliminar */
+.deleteButton {
+    background: #dc3545;
+    color: white;
+    padding: 6px 12px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.deleteButton:hover {
+    background: #a71d2a;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.popupOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popupContent {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    text-align: center;
+}
+
+.popupContent ul {
+    list-style: none;
+    padding: 0;
+}
+
+.popupContent li {
+    background: #f4f4f4;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+}

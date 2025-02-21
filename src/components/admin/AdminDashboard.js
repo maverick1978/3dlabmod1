@@ -1,85 +1,146 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
 import styles from "./AdminDashboard.module.css";
+import ProfileManagement from "./ProfileManagement";
+import UserManagement from "./UserManagement";
 
 function AdminDashboard() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    pendingTasks: 0,
-    completedTasks: 0,
-    totalReports: 0,
-    totalClasses: 0,
-  });
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/admin/stats", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      setStats(data);
-    };
-
-    fetchStats();
-  }, []);
-
-  // Cerrar sesión
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [, setProfiles] = useState([
+    { name: "Administrador", fixed: true, users: 0 },
+    { name: "Educador", fixed: true, users: 0 },
+    { name: "Estudiante", fixed: true, users: 0 },
+  ]);
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Eliminar token de autenticación
-    navigate("/"); // Redirigir al login
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
+  // Obtener perfiles al cargar la página
+  useEffect(() => {
+    fetchProfiles();
+  }, []);
+
+  const fetchProfiles = async () => {
+    const response = await fetch("http://localhost:5000/api/profiles");
+    const data = await response.json();
+    setProfiles(data);
+  };
   return (
     <div className={styles.container}>
-      <h2>Panel de Administrador</h2>
-      <nav className={styles.nav}>
-        <Link to="/admin/classes" className={styles.navLink}></Link>{" "}
-        {/* Nuevo enlace */}
-      </nav>
-      {/* 🔹 Sección de Métricas */}
-      <div className={styles.metrics}>
-        <div className={styles.metricCard}>
-          <h3>Usuarios Registrados</h3>
-          <p>{stats.totalUsers}</p>
-        </div>
-        <div className={styles.metricCard}>
-          <h3>Tareas Pendientes</h3>
-          <p>{stats.pendingTasks}</p>
-        </div>
-        <div className={styles.metricCard}>
-          <h3>Gestión de Clases</h3>
-          <p>{stats.totalClasses}</p>
-        </div>
-        <div className={styles.metricCard}>
-          <h3>Tareas Completadas</h3>
-          <p>{stats.completedTasks}</p>
-        </div>
-        <div className={styles.metricCard}>
-          <h3>Reportes Generados</h3>
-          <p>{stats.totalReports}</p>
-        </div>
-      </div>
+      <div className={styles.dashboard}>
+        {/* Panel lateral fijo */}
+        <aside className={styles.sidebar}>
+          <h3>Administrador</h3>
+          <button
+            onClick={() => setActiveSection("profile")}
+            className={styles.adminButton}
+          >
+            Crear Perfil
+          </button>
+          <button
+            onClick={() => setActiveSection("users")}
+            className={styles.adminButton}
+          >
+            Crear Usuario
+          </button>
+          <button
+            onClick={() => setActiveSection("grades")}
+            className={styles.adminButton}
+          >
+            Crear Grado
+          </button>
+          <button
+            onClick={() => setActiveSection("classes")}
+            className={styles.adminButton}
+          >
+            Crear Clase
+          </button>
+          <button
+            onClick={() => setActiveSection("reset-password")}
+            className={styles.adminButton}
+          >
+            Reiniciar Contraseña
+          </button>
+          <button
+            onClick={() => setActiveSection("settings")}
+            className={styles.adminButton}
+          >
+            Configuración
+          </button>
+          <button onClick={handleLogout} className={styles.logoutButton}>
+            Cerrar Sesión
+          </button>
+        </aside>
 
-      {/* 🔹 Accesos Directos */}
-      <div className={styles.quickAccess}>
-        <button onClick={() => navigate("/admin/users")}>
-          Gestión de Usuarios
-        </button>
-        <button onClick={() => navigate("/admin/tasks")}>
-          Gestión de Tareas
-        </button>
-        <button onClick={() => navigate("/admin/classes")}>
-          Gestión de clases
-        </button>
-        <button onClick={() => navigate("/admin/reports")}>
-          Reportes y Estadísticas
-        </button>
-        <button onClick={handleLogout} className={styles.logoutButton}>
-          Cerrar Sesión
-        </button>
+        {/* Contenido dinámico en columnas */}
+        <main className={styles.mainContent}>
+          {activeSection === "profile" && (
+            <div>
+              <div>
+                {/* Sección de Perfiles */}
+                <ProfileManagement />
+              </div>
+            </div>
+          )}
+
+          {activeSection === "users" && (
+            <div>
+              <h3>Crear Usuario</h3>
+              {activeSection === "users" && <UserManagement />}
+            </div>
+          )}
+
+          {activeSection === "grades" && (
+            <div>
+              <h3>Crear Grado</h3>
+              <div className={styles.formGroup}>
+                <input
+                  type="text"
+                  placeholder="Nombre del grado"
+                  className={styles.inputField}
+                />
+                <button className={styles.actionButton}>Crear</button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "classes" && (
+            <div>
+              <h3>Crear Clase</h3>
+              <div className={styles.formGroup}>
+                <input
+                  type="text"
+                  placeholder="Nombre de la clase"
+                  className={styles.inputField}
+                />
+                <button className={styles.actionButton}>Crear</button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "reset-password" && (
+            <div>
+              <h3>Reiniciar Contraseña</h3>
+              <div className={styles.formGroup}>
+                <input
+                  type="text"
+                  placeholder="Usuario"
+                  className={styles.inputField}
+                />
+                <button className={styles.actionButton}>Reiniciar</button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "settings" && (
+            <div>
+              <h3>Configuración</h3>
+              <p>Ajustes generales de la plataforma.</p>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

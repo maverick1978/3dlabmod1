@@ -8,13 +8,19 @@ function UserManagement() {
   const [formData, setFormData] = useState({
     user: "",
     email: "",
-    role: "",
+    role: "Estudiante",
     password: "",
+    firstName: "",
+    lastName: "",
+    grade: "",
+    area: "",
+    photo: null,
   });
+  const [search, setSearch] = useState("");
   const navigate = useNavigate();
-  const [search, setSearch] = useState(""); // Estado para la búsqueda
+  const [grades, setGrades] = useState(["Primero", "Segundo", "Tercero"]);
+  const [areas, setAreas] = useState(["Matemáticas", "Español", "Geografía"]);
 
-  // Cargar usuarios desde la base de datos
   useEffect(() => {
     const fetchUsers = async () => {
       const token = localStorage.getItem("token");
@@ -28,17 +34,15 @@ function UserManagement() {
     fetchUsers();
   }, []);
 
-  // Filtrar usuarios según la búsqueda
   const filteredUsers = users.filter(
     (user) =>
       user.user.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Aprobar o desaprobar usuario
   const handleApproveToggle = async (id, currentStatus) => {
     const token = localStorage.getItem("token");
-    const newStatus = currentStatus === 1 ? 0 : 1; // Cambia el estado
+    const newStatus = currentStatus === 1 ? 0 : 1;
 
     const response = await fetch(
       `http://localhost:5000/api/users/${id}/approve`,
@@ -61,7 +65,6 @@ function UserManagement() {
     }
   };
 
-  // Manejar cambios en el formulario
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -70,31 +73,68 @@ function UserManagement() {
     }));
   };
 
-  // Guardar cambios en el usuario
-  const handleSave = async () => {
-    const token = localStorage.getItem("token");
-    await fetch(`http://localhost:5000/api/users/${editingUser}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(formData),
-    });
-
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === editingUser
-          ? { ...user, ...formData, password: undefined }
-          : user
-      )
-    );
-
-    setEditingUser(null);
-    setFormData({ user: "", email: "", role: "", password: "" });
+  const handleFileChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      photo: e.target.files[0],
+    }));
   };
 
-  // Eliminar usuario
+  const handleRoleChange = (e) => {
+    const selectedRole = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      role: selectedRole,
+      grade: "",
+      area: "",
+    }));
+  };
+
+  const handleSave = async () => {
+    const token = localStorage.getItem("token");
+
+    const userExists = users.some((u) => u.user === formData.user);
+    if (userExists) {
+      alert("El usuario ya existe");
+      return;
+    }
+
+    const response = await fetch(
+      `http://localhost:5000/api/users/${editingUser}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      }
+    );
+
+    if (response.ok) {
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === editingUser
+            ? { ...user, ...formData, password: undefined }
+            : user
+        )
+      );
+    }
+
+    setEditingUser(null);
+    setFormData({
+      user: "",
+      email: "",
+      role: "Estudiante",
+      password: "",
+      firstName: "",
+      lastName: "",
+      grade: "",
+      area: "",
+      photo: null,
+    });
+  };
+
   const handleDelete = async (id) => {
     const token = localStorage.getItem("token");
     await fetch(`http://localhost:5000/api/users/${id}`, {
@@ -105,7 +145,6 @@ function UserManagement() {
     setUsers((prev) => prev.filter((user) => user.id !== id));
   };
 
-  // Iniciar edición de un usuario
   const startEditing = (user) => {
     setEditingUser(user.id);
     setFormData({
@@ -113,6 +152,10 @@ function UserManagement() {
       email: user.email,
       role: user.role,
       password: "",
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      grade: user.grade || "",
+      area: user.area || "",
     });
   };
 
@@ -120,7 +163,6 @@ function UserManagement() {
     <div className={styles.container}>
       <h2>Gestión de Usuarios</h2>
 
-      {/* 🔍 Barra de búsqueda */}
       <input
         type="text"
         placeholder="Buscar usuario..."
@@ -192,60 +234,73 @@ function UserManagement() {
         </tbody>
       </table>
 
-      {editingUser && (
-        <div className={styles.editForm}>
-          <h3>Editar Usuario</h3>
-          <form>
-            <label>
-              Usuario:
-              <input
-                type="text"
-                name="user"
-                value={formData.user}
-                onChange={handleInputChange}
-              />
-            </label>
-            <label>
-              Email:
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-              />
-            </label>
-            <label>
-              Nueva Contraseña:
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Dejar vacío para no cambiar"
-              />
-            </label>
-            <label>
-              Rol:
+      <div className={styles.editForm}>
+        <h3>Crear Usuario</h3>
+        <form>
+          <label>Perfil:</label>
+          <select name="role" value={formData.role} onChange={handleRoleChange}>
+            <option value="Estudiante">Estudiante</option>
+            <option value="Educador">Educador</option>
+          </select>
+
+          <label>Nombre:</label>
+          <input
+            type="text"
+            name="firstName"
+            value={formData.firstName}
+            onChange={handleInputChange}
+          />
+
+          <label>Apellido:</label>
+          <input
+            type="text"
+            name="lastName"
+            value={formData.lastName}
+            onChange={handleInputChange}
+          />
+
+          {formData.role === "Estudiante" && (
+            <>
+              <label>Grado:</label>
               <select
-                name="role"
-                value={formData.role}
+                name="grade"
+                value={formData.grade}
                 onChange={handleInputChange}
               >
-                <option value="Estudiante">Estudiante</option>
-                <option value="Educador">Educador</option>
-                <option value="administrador">Administrador</option>
+                {grades.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
               </select>
-            </label>
-          </form>
-        </div>
-      )}
+            </>
+          )}
 
-      <button
-        className={styles.backButton}
-        onClick={() => navigate("/admin/dashboard")}
-      >
-        Volver al Menú Principal
-      </button>
+          {formData.role === "Educador" && (
+            <>
+              <label>Área:</label>
+              <select
+                name="area"
+                value={formData.area}
+                onChange={handleInputChange}
+              >
+                {areas.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          <label>Foto:</label>
+          <input type="file" onChange={handleFileChange} />
+
+          <button type="button" onClick={handleSave}>
+            Guardar Usuario
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

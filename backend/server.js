@@ -31,7 +31,7 @@ const verifyRole = (requiredRole) => (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, "SECRET_KEY");
-    if (decoded.role === requiredRole || decoded.role === "admin") {
+    if (decoded.role === requiredRole || decoded.role === "Administrador") {
       req.user = decoded;
       next();
     } else {
@@ -53,38 +53,40 @@ const db = new sqlite3.Database("./users.db", (err) => {
 
 // Crear tablas si no existen
 const createTables = () => {
-  // Crear la tabla de tareas si no existe
   db.run(
     `
-  CREATE TABLE IF NOT EXISTS tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Pendiente',
-    date TEXT DEFAULT ''
-  )
-`,
-    (err) => {
-      if (err) {
-        console.error("Error al crear la tabla de tareas:", err.message);
-      } else {
-        console.log('Tabla "tasks" creada o ya existente.');
-      }
+        CREATE TABLE IF NOT EXISTS profile (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT UNIQUE NOT NULL,
+            description TEXT NOT NULL
+        )
+    `,
+    () => {
+      // Insertar roles predeterminados si no existen
+      db.run(`
+            INSERT OR IGNORE INTO profile (role, description) VALUES 
+            ('Administrador', 'Perfil con acceso total al sistema'),
+            ('Educador', 'Perfil con permisos para gestionar clases y tareas'),
+            ('Estudiante', 'Perfil con acceso limitado para visualizar tareas y clases')
+        `);
     }
   );
 
   db.run(`
      CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user TEXT NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    role TEXT CHECK(role IN ('Estudiante', 'Educador', 'admin')) DEFAULT 'Educador',
-    approved INTEGER DEFAULT 0,  -- 0 = Pendiente, 1 = Aprobado
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  role INTEGER NULL,
+  approved INTEGER DEFAULT 0,  -- Se separa de CHECK para evitar errores
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (role) REFERENCES profile(id) ON DELETE SET NULL
+);
+
 
   `);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,6 +108,26 @@ const createTables = () => {
     FOREIGN KEY (educator_id) REFERENCES users(id)
   )
 `);
+
+  // Crear la tabla de tareas si no existe
+  db.run(
+    `
+  CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pendiente',
+    date TEXT DEFAULT ''
+  )
+`,
+    (err) => {
+      if (err) {
+        console.error("Error al crear la tabla de tareas:", err.message);
+      } else {
+        console.log('Tabla "tasks" creada o ya existente.');
+      }
+    }
+  );
 
   db.run(
     `
@@ -136,10 +158,10 @@ const seedNotifications = async () => {
     "INSERT INTO students (name, progress) VALUES (?, ?)";
 
   // Generar la contraseña encriptada para el admin
-  const adminUser = "admin";
+  const adminUser = "Administrador";
   const adminEmail = "admin@example.com";
   const adminPassword = await bcrypt.hash("admin123", 10); // Contraseña encriptada
-  const adminRole = "admin";
+  const adminRole = "Administrador";
 
   db.serialize(() => {
     // Crear el usuario admin si no existe
@@ -172,50 +194,171 @@ const seedNotifications = async () => {
 // Crear tablas y seed inicial
 createTables();
 // Endpoint Registrar usuario
+// Modificar el registro de usuarios para usar perfiles de la tabla profile
 app.post("/api/register", async (req, res) => {
   const { username, email, password, role } = req.body;
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+  db.get("SELECT id FROM profile WHERE role = ?", [role], (err, row) => {
+    if (err) return res.status(500).json({ error: "Error al buscar perfil" });
 
-    db.run(
-      "INSERT INTO users (user, email, password, role) VALUES (?, ?, ?, ?)",
-      [username, email, hashedPassword, role || "Estudiante"],
-      function (err) {
-        if (err) {
-          return res.status(400).json({ error: "Error al registrar usuario" });
+    if (!row) {
+      return res
+        .status(400)
+        .json({ error: "El perfil seleccionado no existe" });
+    }
+
+    bcrypt.hash(password, 10, (err, hash) => {
+      if (err)
+        return res.status(500).json({ error: "Error al encriptar contraseña" });
+
+      db.run(
+        "INSERT INTO users (user, email, password, role, approved) VALUES (?, ?, ?, ?, 0)",
+        [username, email, hash, row.id],
+        function (err) {
+          if (err)
+            return res
+              .status(500)
+              .json({ error: "Error al registrar usuario" });
+
+          res.status(201).json({
+            message: "Usuario registrado correctamente",
+            userId: this.lastID,
+          });
         }
-        res.status(201).json({
-          id: this.lastID,
-          username,
-          email,
-          role: role || "Estudiante",
+      );
+    });
+  });
+});
+
+/// Verificar si un perfil tiene usuarios antes de eliminarlo
+app.get("/api/profiles/:id/check-users", (req, res) => {
+  const profileId = req.params.id;
+
+  db.get(
+    "SELECT COUNT(*) AS count FROM users WHERE role = ?",
+    [profileId],
+    (err, row) => {
+      if (err) {
+        return res
+          .status(500)
+          .json({ error: "Error al verificar usuarios en este perfil" });
+      }
+      res.json({ userCount: row.count });
+    }
+  );
+});
+
+// Eliminar un perfil solo si no tiene usuarios asociados
+app.delete("/api/profiles/:id", (req, res) => {
+  const profileId = req.params.id;
+
+  db.get(
+    "SELECT COUNT(*) AS count FROM users WHERE role = ?",
+    [profileId],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({
+          error: "Error al verificar usuarios antes de eliminar el perfil",
         });
       }
-    );
-  } catch (error) {
-    res.status(500).json({ error: "Error del servidor al registrar usuario" });
-  }
+
+      if (row.count > 0) {
+        return res.status(400).json({
+          error: "No se puede eliminar un perfil con usuarios asociados",
+        });
+      }
+
+      db.run("DELETE FROM profile WHERE id = ?", [profileId], function (err) {
+        if (err) {
+          return res.status(500).json({ error: "Error al eliminar el perfil" });
+        }
+        res.json({ message: "Perfil eliminado correctamente" });
+      });
+    }
+  );
 });
+
+// Endpoint para crear un nuevo perfil desde AdminDashboard
+app.post("/api/profiles", (req, res) => {
+  const { role, description } = req.body;
+
+  if (!role || !description) {
+    return res
+      .status(400)
+      .json({ error: "Se requieren el nombre y la descripción del perfil" });
+  }
+
+  if (["Administrador", "Educador", "Estudiante"].includes(role)) {
+    return res
+      .status(400)
+      .json({ error: "No se pueden modificar los perfiles predeterminados" });
+  }
+
+  db.run(
+    "INSERT INTO profile (role, description) VALUES (?, ?)",
+    [role, description],
+    function (err) {
+      if (err) return res.status(500).json({ error: "Error al crear perfil" });
+
+      res.json({
+        message: "Perfil creado correctamente",
+        profileId: this.lastID,
+      });
+    }
+  );
+});
+
+// Endpoint para obtener todos los perfiles
+app.get("/api/profiles", (req, res) => {
+  db.all("SELECT * FROM profile", [], (err, rows) => {
+    if (err)
+      return res.status(500).json({ error: "Error al obtener perfiles" });
+
+    res.json(rows);
+  });
+});
+
+// Obtener usuarios asociados a un perfil específico
+app.get("/api/profiles/:role/users", (req, res) => {
+  const { role } = req.params;
+
+  db.all(
+    "SELECT id, user, email FROM users WHERE role = ?",
+    [role],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: "Error en la consulta" });
+      res.json(rows);
+    }
+  );
+});
+
 // Endpoint Iniciar sesión
 app.post("/api/login", async (req, res) => {
   const { user, password } = req.body;
 
   // Verificar si se trata de un usuario "admin" con credenciales predeterminadas
-  if (user === "admin" && password === "admin123") {
-    const token = jwt.sign({ user: user, role: "admin" }, "SECRET_KEY", {
-      expiresIn: "1h",
-    });
+  if (user === "Administrador" && password === "admin123") {
+    const token = jwt.sign(
+      { user: user, role: "Administrador" },
+      "SECRET_KEY",
+      {
+        expiresIn: "1h",
+      }
+    );
     return res.status(200).json({
-      message: "Inicio de sesión exitoso (admin)",
+      message: "Inicio de sesión exitoso (Administrador)",
       token,
       user: user,
+      role: "Administrador",
     });
   }
 
-  // Consultar en la base de datos por username o email
+  // Consultar en la base de datos por username o email con JOIN a profile
   db.get(
-    "SELECT * FROM users WHERE user = ? OR email = ?",
+    `SELECT users.*, profile.role as role_name 
+   FROM users 
+   LEFT JOIN profile ON users.role = profile.id 
+   WHERE users.user = ? OR users.email = ?`,
     [user, user],
     async (err, userRow) => {
       if (err) {
@@ -234,25 +377,66 @@ app.post("/api/login", async (req, res) => {
 
       // Verificar contraseña
       const isValid = await bcrypt.compare(password, userRow.password);
-
-      if (isValid) {
-        const token = jwt.sign(
-          { id: userRow.id, role: userRow.role },
-          "SECRET_KEY",
-          { expiresIn: "1h" }
-        );
-        return res.status(200).json({
-          message: "Inicio de sesión exitoso",
-          token,
-          user: userRow.user,
-          role: userRow.role,
-        });
-      } else {
+      if (!isValid) {
         return res.status(401).json({ error: "Credenciales inválidas" });
       }
+
+      // Generar token con el rol correcto
+      const token = jwt.sign(
+        { id: userRow.id, role: userRow.role_name || userRow.role },
+        "SECRET_KEY",
+        { expiresIn: "1h" }
+      );
+
+      return res.status(200).json({
+        message: "Inicio de sesión exitoso",
+        token,
+        user: userRow.user,
+        role: userRow.role_name || userRow.role,
+      });
     }
   );
 });
+
+// Crear un nuevo perfil (incluyendo la creación de perfiles predeterminados si no existen)
+app.post("/profiles", (req, res) => {
+  const { role, description } = req.body;
+
+  // Crear perfiles predeterminados si no existen
+  const defaultProfiles = [
+    { role: "Administrador", description: "Perfil con todos los permisos" },
+    { role: "Educador", description: "Perfil con permisos de enseñanza" },
+    { role: "Estudiante", description: "Perfil con permisos de aprendizaje" },
+  ];
+
+  defaultProfiles.forEach(({ role, description }) => {
+    db.run("INSERT OR IGNORE INTO profile (role, description) VALUES (?, ?)", [
+      role,
+      description,
+    ]);
+  });
+
+  // Evitar modificar perfiles predeterminados
+  if (["Administrador", "Educador", "Estudiante"].includes(role)) {
+    return res.status(400).json({
+      error: "No se puede modificar perfiles predeterminados",
+    });
+  }
+
+  // Insertar nuevo perfil
+  db.run(
+    "INSERT INTO profile (role, description) VALUES (?, ?)",
+    [role, description],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({
+        profileId: this.lastID,
+        message: "Perfil creado correctamente",
+      });
+    }
+  );
+});
+
 // Endpoint para obtener todas las notificaciones
 app.get("/api/notifications", (req, res) => {
   const { type } = req.query; // Filtrar por tipo si es necesario
@@ -386,7 +570,7 @@ app.get("/api/students", (req, res) => {
   });
 });
 
-app.get("/api/users", verifyRole("admin"), (req, res) => {
+app.get("/api/users", verifyRole("Administrador"), (req, res) => {
   db.all(
     "SELECT id, user, email, role, approved FROM users",
     [],
@@ -400,7 +584,7 @@ app.get("/api/users", verifyRole("admin"), (req, res) => {
   );
 });
 
-app.put("/api/users/:id", verifyRole("admin"), (req, res) => {
+app.put("/api/users/:id", verifyRole("Administrador"), (req, res) => {
   const { id } = req.params;
   const { user, email, role, password } = req.body;
 
@@ -424,7 +608,7 @@ app.put("/api/users/:id", verifyRole("admin"), (req, res) => {
   });
 });
 
-app.delete("/api/users/:id", verifyRole("admin"), (req, res) => {
+app.delete("/api/users/:id", verifyRole("Administrador"), (req, res) => {
   const { id } = req.params;
 
   db.run("DELETE FROM users WHERE id = ?", [id], function (err) {
@@ -436,7 +620,7 @@ app.delete("/api/users/:id", verifyRole("admin"), (req, res) => {
   });
 });
 
-app.put("/api/users/:id/approve", verifyRole("admin"), (req, res) => {
+app.put("/api/users/:id/approve", verifyRole("Administrador"), (req, res) => {
   const { id } = req.params;
   const { approved } = req.body; // Recibir si queremos aprobar (1) o desaprobar (0)
 
@@ -484,13 +668,13 @@ app.get("/api/tasks", (req, res) => {
 });
 
 // Ruta protegida para el AdminDashboard
-app.get("/api/admin/dashboard", verifyRole("admin"), (req, res) => {
+app.get("/api/admin/dashboard", verifyRole("Administrador"), (req, res) => {
   res.status(200).json({
     message: "Bienvenido al AdminDashboard",
     user: req.user, // Información del usuario decodificada desde el token
   });
 });
-app.get("/api/admin/stats", verifyRole("admin"), (req, res) => {
+app.get("/api/admin/stats", verifyRole("Administrador"), (req, res) => {
   const queryUsers = "SELECT COUNT(*) AS totalUsers FROM users";
   const queryPendingTasks =
     "SELECT COUNT(*) AS pendingTasks FROM tasks WHERE status = 'Pendiente'";
@@ -592,23 +776,27 @@ db.run(`
 `);
 
 // Endpoint para crear una clase
-app.post("/api/classes", verifyRole(["admin", "educador"]), (req, res) => {
-  const { name, grade } = req.body;
+app.post(
+  "/api/classes",
+  verifyRole(["Administrador", "educador"]),
+  (req, res) => {
+    const { name, grade } = req.body;
 
-  db.run(
-    "INSERT INTO classes (name, grade) VALUES (?, ?)",
-    [name, grade],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: "Error al crear la clase" });
+    db.run(
+      "INSERT INTO classes (name, grade) VALUES (?, ?)",
+      [name, grade],
+      function (err) {
+        if (err) {
+          return res.status(500).json({ error: "Error al crear la clase" });
+        }
+        res.json({ id: this.lastID, name, grade });
       }
-      res.json({ id: this.lastID, name, grade });
-    }
-  );
-});
+    );
+  }
+);
 
 // Endpoint para obtener todas las clases
-app.get("/api/classes", verifyRole("admin, educador"), (req, res) => {
+app.get("/api/classes", verifyRole("Administrador, educador"), (req, res) => {
   db.all("SELECT * FROM classes", [], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: "Error al obtener las clases" });
@@ -642,7 +830,7 @@ app.put("/api/classes/:id", (req, res) => {
 // Endpoint para eliminar una clase
 app.delete(
   "/api/classes/:id",
-  verifyRole(["admin", "educador"]),
+  verifyRole(["Administrador", "educador"]),
   (req, res) => {
     const { id } = req.params;
 
@@ -657,7 +845,7 @@ app.delete(
 
 app.post(
   "/api/classes/:classId/students",
-  verifyRole(["admin", "educador"]),
+  verifyRole(["Administrador", "educador"]),
   (req, res) => {
     const { classId } = req.params;
     const { student_id } = req.body;
@@ -710,45 +898,57 @@ app.post(
 }); */
 
 // Endpoint para obtener los estudiantes de una clase
-app.get("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
-  const { classId } = req.params;
+app.get(
+  "/api/classes/:classId/students",
+  verifyRole("Administrador"),
+  (req, res) => {
+    const { classId } = req.params;
 
-  db.all(
-    `SELECT users.id, users.user, users.email 
+    db.all(
+      `SELECT users.id, users.user, users.email 
      FROM users 
      JOIN class_students ON users.id = class_students.student_id
      WHERE class_students.class_id = ?`,
-    [classId],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ error: "Error al obtener estudiantes" });
+      [classId],
+      (err, rows) => {
+        if (err) {
+          return res
+            .status(500)
+            .json({ error: "Error al obtener estudiantes" });
+        }
+        res.json(rows);
       }
-      res.json(rows);
-    }
-  );
-});
+    );
+  }
+);
 
-app.get("/api/classes/:classId/students", verifyRole("admin"), (req, res) => {
-  const { classId } = req.params;
+app.get(
+  "/api/classes/:classId/students",
+  verifyRole("Administrador"),
+  (req, res) => {
+    const { classId } = req.params;
 
-  db.all(
-    `SELECT users.id, users.user, users.email 
+    db.all(
+      `SELECT users.id, users.user, users.email 
      FROM users 
      JOIN class_students ON users.id = class_students.student_id
      WHERE class_students.class_id = ?`,
-    [classId],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ error: "Error al obtener estudiantes" });
+      [classId],
+      (err, rows) => {
+        if (err) {
+          return res
+            .status(500)
+            .json({ error: "Error al obtener estudiantes" });
+        }
+        res.json(rows);
       }
-      res.json(rows);
-    }
-  );
-});
+    );
+  }
+);
 
 app.delete(
   "/api/classes/:classId/students/:studentId",
-  verifyRole("admin"),
+  verifyRole("Administrador"),
   (req, res) => {
     const { classId, studentId } = req.params;
 
@@ -788,25 +988,29 @@ app.get("/api/class_student/:class_id", (req, res) => {
   );
 });
 
-app.get("/api/students/:studentId/classes", verifyRole("admin"), (req, res) => {
-  const { studentId } = req.params;
+app.get(
+  "/api/students/:studentId/classes",
+  verifyRole("Administrador"),
+  (req, res) => {
+    const { studentId } = req.params;
 
-  db.all(
-    `SELECT classes.id, classes.name, classes.grade 
+    db.all(
+      `SELECT classes.id, classes.name, classes.grade 
      FROM classes 
      JOIN class_students ON classes.id = class_students.class_id
      WHERE class_students.student_id = ?`,
-    [studentId],
-    (err, rows) => {
-      if (err) {
-        return res
-          .status(500)
-          .json({ error: "Error al obtener historial de clases" });
+      [studentId],
+      (err, rows) => {
+        if (err) {
+          return res
+            .status(500)
+            .json({ error: "Error al obtener historial de clases" });
+        }
+        res.json(rows);
       }
-      res.json(rows);
-    }
-  );
-});
+    );
+  }
+);
 
 app.post("/api/class_students", (req, res) => {
   const { class_id, student_id } = req.body;

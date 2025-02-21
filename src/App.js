@@ -31,7 +31,7 @@ function App() {
           {/* Rutas protegidas para administrador */}
           <Route
             path="/admin"
-            element={<ProtectedRoute requiredRole="admin" />}
+            element={<ProtectedRoute requiredRole="Administrador" />}
           >
             {/* Subrutas del panel de administrador */}
             <Route path="dashboard" element={<AdminDashboard />} />

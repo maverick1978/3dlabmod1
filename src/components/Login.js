@@ -32,7 +32,7 @@ function Login() {
 
         // Redirigir según el rol del usuario
         switch (data.role) {
-          case "admin":
+          case "Administrador":
             navigate("/admin/dashboard");
             break;
           case "Estudiante":

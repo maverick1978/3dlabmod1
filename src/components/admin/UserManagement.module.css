@@ -1,99 +1,147 @@
 .container {
-    padding: 2rem;
-    background-color: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 h2 {
     text-align: center;
-    color: #2c3e50;
-    margin-bottom: 1.5rem;
+    color: #333;
+}
+
+.searchBar {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 15px;
 }
 
 .table {
     width: 100%;
     border-collapse: collapse;
-    margin: 0 auto;
+    margin-bottom: 20px;
 }
 
 .table th, .table td {
+    padding: 10px;
     border: 1px solid #ddd;
-    padding: 0.75rem;
     text-align: left;
 }
 
 .table th {
-    background-color: #34495e;
+    background: #007bff;
     color: white;
 }
 
-.table tr:nth-child(even) {
-    background-color: #f2f2f2;
+.table td {
+    background: #fff;
 }
 
-.table tr:hover {
-    background-color: #dcdcdc;
+/* Botones separados */
+.button-group {
+    display: flex;
+    gap: 10px;
 }
 
-select {
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-button {
-    padding: 0.5rem 1rem;
+.approveButton, .disapproveButton,
+.editButton, .deleteButton, .saveButton, .cancelButton, .backButton {
+    padding: 6px 12px;
+    font-size: 14px;
     border: none;
-    border-radius: 5px;
+    border-radius: 4px;
     cursor: pointer;
-}
-
-button:hover {
-    opacity: 0.9;
-}
-
-button:active {
-    transform: scale(0.98);
-}
-
-button.delete {
-    background-color: #e74c3c;
-    color: white;
-}
-
-button.delete:hover {
-    background-color: #c0392b;
-}
-
-.backButton {
-    margin-top: 20px;
-    padding: 10px 20px;
-    font-size: 16px;
-    color: white;
-    background-color: #007bff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.backButton:hover {
-    background-color: #0056b3;
+    transition: 0.3s;
+    display: inline-block;
 }
 
 .approveButton {
-    background-color: green;
+    background: #28a745;
     color: white;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
 }
 
 .disapproveButton {
-    background-color: red;
+    background: #dc3545;
     color: white;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
+}
+
+.editButton {
+    background: #ffc107;
+    color: black;
+    margin-left: 50px;
+}
+
+.deleteButton {
+    background: #dc3545;
+    color: white;
+    margin-left: 5px;
+}
+
+.saveButton {
+    background: #007bff;
+    color: white;
+    margin-left: 5px;
+
+}
+
+.cancelButton {
+    background: #6c757d;
+    color: white;
+    margin-left: 5px;
+}
+
+.backButton {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: #343a40;
+    color: white;
+    margin-top: 20px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Estilo del formulario en 2 columnas */
+.editForm {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.editForm label {
+    display: block;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.editForm input,
+.editForm select {
+    width: 100%;
+    height: 30px;
+    /* Máximo 30px */
+    padding: 5px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.editForm select {
+    background: white;
+}
+
+button:hover {
+    opacity: 0.8;
 }
