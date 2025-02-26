@@ -1,0 +1,33 @@
+.createUserContainer {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    width: 50%;
+    margin: auto;
+}
+
+.createUserForm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.inputField {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.createButton {
+    background: #4caf50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.createButton:hover {
+    background: #45a049;
+}

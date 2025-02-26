@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CreateUser from "./CreateUser";
 import styles from "./UserManagement.module.css";
 
 function UserManagement() {
+  const handleUserCreated = (newUser) => {
+    setUsers([...users, newUser]);
+  };
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
