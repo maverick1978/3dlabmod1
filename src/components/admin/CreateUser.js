@@ -1,189 +1,259 @@
 import React, { useState, useEffect } from "react";
 import styles from "./CreateUser.module.css";
 
-function CreateUser({ onUserCreated }) {
-  const [profiles, setProfiles] = useState([]);
+function CreateUser({ fetchUsers }) {
+  const [users, setUsers] = useState([]); // Lista de usuarios
+  const [profiles, setProfiles] = useState([]); // Lista de perfiles
+  const [selectedUser, setSelectedUser] = useState(null); // Usuario seleccionado para edición
   const [formData, setFormData] = useState({
-    role: "",
+    username: "",
     firstName: "",
     lastName: "",
-    username: "",
     email: "",
     password: "",
     confirmPassword: "",
-    grade: "",
-    area: "",
+    role: "",
     photo: null,
   });
 
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [background, setBackground] = useState("#ffffff");
-  const [inspirationalQuote, setInspirationalQuote] = useState("");
-
-  // Obtener perfiles desde la base de datos
+  // Cargar usuarios y perfiles desde la base de datos
   useEffect(() => {
-    fetch("http://localhost:5000/api/profiles")
-      .then((res) => res.json())
-      .then((data) => setProfiles(data))
-      .catch((err) => console.error("Error al cargar perfiles:", err));
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No autenticado");
+
+        const usersRes = await fetch("http://localhost:5000/api/users", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // Se envía el token correctamente
+          },
+        });
+
+        if (!usersRes.ok) throw new Error("Error al obtener usuarios");
+        const usersData = await usersRes.json();
+        setUsers(usersData);
+
+        const profilesRes = await fetch("http://localhost:5000/api/profiles", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!profilesRes.ok) throw new Error("Error al obtener perfiles");
+        const profilesData = await profilesRes.json();
+        setProfiles(profilesData);
+      } catch (error) {
+        console.error("Error al cargar datos:", error);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  // Manejar cambios en los campos del formulario
+  // Manejo de cambios en los inputs
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Manejar la selección de archivo (foto)
+  // Manejo de carga de imagen
   const handleFileChange = (e) => {
-    setFormData({ ...formData, photo: e.target.files[0] });
+    setFormData((prev) => ({ ...prev, photo: e.target.files[0] }));
   };
 
-  // Guardar usuario
-  const handleSave = () => {
+  // Seleccionar usuario para edición
+  const handleSelectUser = (user) => {
+    setSelectedUser(user.id);
+    setFormData({
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      password: "",
+      confirmPassword: "",
+      role: user.role,
+      photo: null,
+    });
+  };
+
+  // Guardar usuario nuevo o actualizado
+  const handleSave = async () => {
+    if (!formData.username || !formData.email || !formData.role) {
+      alert("Todos los campos son obligatorios");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       alert("Las contraseñas no coinciden");
       return;
     }
 
-    const newUser = {
-      role: formData.role,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-      grade: formData.grade,
-      area: formData.area,
-      photo: formData.photo,
-    };
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("No autenticado");
+      return;
+    }
 
-    fetch("http://localhost:5000/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newUser),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        alert("Usuario creado exitosamente");
-        setSelectedUser(`${formData.firstName} ${formData.lastName}`);
-        if (onUserCreated) onUserCreated(data);
-      })
-      .catch((err) => console.error("Error al crear usuario:", err));
+    const method = selectedUser ? "PUT" : "POST";
+    const url = selectedUser
+      ? `http://localhost:5000/api/users/${selectedUser}`
+      : "http://localhost:5000/api/users";
+
+    const formDataToSend = new FormData();
+    Object.keys(formData).forEach((key) => {
+      formDataToSend.append(key, formData[key]);
+    });
+
+    const response = await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${token}` },
+      body: formDataToSend,
+    });
+
+    if (response.ok) {
+      alert("Usuario guardado correctamente");
+      setFormData({
+        username: "",
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        role: "",
+        photo: null,
+      });
+      fetchUsers();
+    } else {
+      alert("Error al guardar el usuario");
+    }
+  };
+
+  // Eliminar usuario (excepto Administrador)
+  const handleDeleteUser = async (userId, role) => {
+    if (role === "Administrador") {
+      alert("El administrador no se puede eliminar");
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      "¿Estás seguro de eliminar este usuario?"
+    );
+    if (!confirmDelete) return;
+
+    const token = localStorage.getItem("token");
+    const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (response.ok) {
+      alert("Usuario eliminado correctamente");
+      setUsers((prev) => prev.filter((user) => user.id !== userId));
+    } else {
+      alert("Error al eliminar el usuario");
+    }
   };
 
   return (
-    <div className={styles.createUserContainer} style={{ background }}>
-      <h3>Crear Usuario</h3>
+    <div className={styles.container}>
+      <h2>Crear Usuario</h2>
 
-      {selectedUser && <h4>Usuario Seleccionado: {selectedUser}</h4>}
+      {/* Mostrar nombre del usuario seleccionado */}
+      {selectedUser && <h3>Usuario seleccionado: {formData.username}</h3>}
 
-      <label>Perfil:</label>
-      <select name="role" value={formData.role} onChange={handleInputChange}>
-        <option value="">Selecciona un perfil</option>
-        {profiles.map((profile) => (
-          <option key={profile.id} value={profile.role}>
-            {profile.role}
-          </option>
-        ))}
-      </select>
-
-      <label>Nombre:</label>
-      <input
-        type="text"
-        name="firstName"
-        value={formData.firstName}
-        onChange={handleInputChange}
-      />
-
-      <label>Apellido:</label>
-      <input
-        type="text"
-        name="lastName"
-        value={formData.lastName}
-        onChange={handleInputChange}
-      />
-
-      <label>Usuario:</label>
-      <input
-        type="text"
-        name="username"
-        value={formData.username}
-        onChange={handleInputChange}
-      />
-
-      <label>Correo:</label>
-      <input
-        type="email"
-        name="email"
-        value={formData.email}
-        onChange={handleInputChange}
-      />
-
-      <label>Contraseña:</label>
-      <input
-        type="password"
-        name="password"
-        value={formData.password}
-        onChange={handleInputChange}
-      />
-
-      <label>Repite Contraseña:</label>
-      <input
-        type="password"
-        name="confirmPassword"
-        value={formData.confirmPassword}
-        onChange={handleInputChange}
-      />
-
-      {formData.role === "Estudiante" && (
-        <>
-          <label>Grado:</label>
-          <select
-            name="grade"
-            value={formData.grade}
-            onChange={handleInputChange}
-          >
-            <option value="">Selecciona un grado</option>
-            <option value="Primero">Primero</option>
-            <option value="Segundo">Segundo</option>
-          </select>
-        </>
-      )}
-
-      {formData.role === "Educador" && (
-        <>
-          <label>Área:</label>
-          <select
-            name="area"
-            value={formData.area}
-            onChange={handleInputChange}
-          >
-            <option value="">Selecciona un área</option>
-            <option value="Matemáticas">Matemáticas</option>
-            <option value="Español">Español</option>
-            <option value="Geografía">Geografía</option>
-          </select>
-        </>
-      )}
-
-      {/* Subir o Capturar Foto */}
-      <label>Cargar Fotografía o Capturar</label>
-      <input type="file" onChange={handleFileChange} />
-      {formData.photo && (
-        <img
-          src={URL.createObjectURL(formData.photo)}
-          alt="Foto de usuario"
-          className={styles.photoPreview}
+      {/* Formulario de creación / edición */}
+      <div className={styles.formGroup}>
+        <label>Nombre de Usuario:</label>
+        <input
+          type="text"
+          name="username"
+          value={formData.username}
+          onChange={handleInputChange}
         />
-      )}
 
-      {/* Botones adicionales */}
-      <button onClick={() => setBackground("#f0f0f0")}>Cambiar Fondo</button>
-      <button onClick={() => setInspirationalQuote("¡Sigue adelante!")}>
-        Mi frase inspiradora
-      </button>
+        <label>Nombre:</label>
+        <input
+          type="text"
+          name="firstName"
+          value={formData.firstName}
+          onChange={handleInputChange}
+        />
 
-      <button onClick={handleSave}>Guardar</button>
+        <label>Apellido:</label>
+        <input
+          type="text"
+          name="lastName"
+          value={formData.lastName}
+          onChange={handleInputChange}
+        />
+
+        <label>Correo:</label>
+        <input
+          type="email"
+          name="email"
+          value={formData.email}
+          onChange={handleInputChange}
+        />
+
+        <label>Contraseña:</label>
+        <input
+          type="password"
+          name="password"
+          value={formData.password}
+          onChange={handleInputChange}
+        />
+
+        <label>Confirmar Contraseña:</label>
+        <input
+          type="password"
+          name="confirmPassword"
+          value={formData.confirmPassword}
+          onChange={handleInputChange}
+        />
+
+        <label>Perfil:</label>
+        <select name="role" value={formData.role} onChange={handleInputChange}>
+          <option value="">Seleccionar Perfil</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.role}>
+              {profile.role} - {profile.description}
+            </option>
+          ))}
+        </select>
+
+        <label>Foto:</label>
+        <input type="file" onChange={handleFileChange} />
+
+        <button onClick={handleSave}>
+          {selectedUser ? "Actualizar Usuario" : "Crear Usuario"}
+        </button>
+      </div>
+
+      {/* Lista de usuarios */}
+      <h3>Usuarios Registrados</h3>
+      <ul className={styles.userList}>
+        {users.length > 0 ? (
+          users.map((user) => (
+            <li key={user.id} className={styles.userItem}>
+              <span onClick={() => handleSelectUser(user)}>
+                {user.username} - {user.email} ({user.role})
+              </span>
+              {user.role !== "Administrador" && (
+                <button
+                  className={styles.deleteButton}
+                  onClick={() => handleDeleteUser(user.id, user.role)}
+                >
+                  Eliminar
+                </button>
+              )}
+            </li>
+          ))
+        ) : (
+          <p>No hay usuarios registrados.</p>
+        )}
+      </ul>
     </div>
   );
 }

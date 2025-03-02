@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import CreateUser from "./CreateUser";
 import styles from "./UserManagement.module.css";
+import axios from "axios";
 
 function UserManagement() {
-  const handleUserCreated = (newUser) => {
-    setUsers([...users, newUser]);
-  };
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({
     user: "",
     email: "",
@@ -21,23 +19,22 @@ function UserManagement() {
     photo: null,
   });
   const [search, setSearch] = useState("");
-  const navigate = useNavigate();
-  const [grades, setGrades] = useState(["Primero", "Segundo", "Tercero"]);
-  const [areas, setAreas] = useState(["Matemáticas", "Español", "Geografía"]);
-
   useEffect(() => {
-    const fetchUsers = async () => {
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      setUsers(data);
-    };
-
     fetchUsers();
   }, []);
 
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/users");
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Error al obtener usuarios:", error);
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+  };
   const filteredUsers = users.filter(
     (user) =>
       user.user.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,31 +64,6 @@ function UserManagement() {
         )
       );
     }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleFileChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      photo: e.target.files[0],
-    }));
-  };
-
-  const handleRoleChange = (e) => {
-    const selectedRole = e.target.value;
-    setFormData((prev) => ({
-      ...prev,
-      role: selectedRole,
-      grade: "",
-      area: "",
-    }));
   };
 
   const handleSave = async () => {
@@ -166,7 +138,6 @@ function UserManagement() {
   return (
     <div className={styles.container}>
       <h2>Gestión de Usuarios</h2>
-
       <input
         type="text"
         placeholder="Buscar usuario..."
@@ -174,7 +145,7 @@ function UserManagement() {
         onChange={(e) => setSearch(e.target.value)}
         className={styles.searchBar}
       />
-
+      <CreateUser fetchUsers={fetchUsers} />
       <table className={styles.table}>
         <thead>
           <tr>
@@ -233,78 +204,31 @@ function UserManagement() {
                   </>
                 )}
               </td>
+              <div>
+                <button onClick={() => setSelectedUser(null)}>
+                  Crear Usuario
+                </button>
+                <CreateUser
+                  selectedUser={selectedUser}
+                  onUserSaved={fetchUsers}
+                />
+
+                <h3>Lista de Usuarios</h3>
+                <ul>
+                  {users.map((user) => (
+                    <li key={user.id}>
+                      {user.firstName} {user.lastName} - {user.email}
+                      <button onClick={() => handleEditUser(user)}>
+                        Editar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </tr>
           ))}
         </tbody>
       </table>
-
-      <div className={styles.editForm}>
-        <h3>Crear Usuario</h3>
-        <form>
-          <label>Perfil:</label>
-          <select name="role" value={formData.role} onChange={handleRoleChange}>
-            <option value="Estudiante">Estudiante</option>
-            <option value="Educador">Educador</option>
-          </select>
-
-          <label>Nombre:</label>
-          <input
-            type="text"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleInputChange}
-          />
-
-          <label>Apellido:</label>
-          <input
-            type="text"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleInputChange}
-          />
-
-          {formData.role === "Estudiante" && (
-            <>
-              <label>Grado:</label>
-              <select
-                name="grade"
-                value={formData.grade}
-                onChange={handleInputChange}
-              >
-                {grades.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {formData.role === "Educador" && (
-            <>
-              <label>Área:</label>
-              <select
-                name="area"
-                value={formData.area}
-                onChange={handleInputChange}
-              >
-                {areas.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          <label>Foto:</label>
-          <input type="file" onChange={handleFileChange} />
-
-          <button type="button" onClick={handleSave}>
-            Guardar Usuario
-          </button>
-        </form>
-      </div>
     </div>
   );
 }

@@ -72,20 +72,24 @@ const createTables = () => {
     }
   );
 
+  // Crear tabla users (ajustada)
   db.run(`
-     CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user TEXT NOT NULL UNIQUE,
-  email TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
-  role INTEGER NULL,
-  approved INTEGER DEFAULT 0,  -- Se separa de CHECK para evitar errores
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (role) REFERENCES profile(id) ON DELETE SET NULL
-);
-
-
-  `);
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role INTEGER NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    firstName TEXT NOT NULL,
+    lastName TEXT NOT NULL,
+    photo BLOB,      
+    grade TEXT,  
+    area TEXT,
+    APPROVED INTEGER DEFAULT 0, -- 0 = Pendiente, 1 = Aprobado
+    create_at datetime default CURRENT_TIMESTAMP,
+    FOREIGN KEY (role) REFERENCES profile(id) ON DELETE RESTRICT
+  )
+`);
 
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
@@ -153,28 +157,37 @@ const createTables = () => {
 };
 // Seed inicial para notificaciones y creación del admin
 const seedNotifications = async () => {
-  const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?, ?)`;
-  const insertStudentsQuery =
-    "INSERT INTO students (name, progress) VALUES (?, ?)";
-
-  // Generar la contraseña encriptada para el admin
-  const adminUser = "Administrador";
+  const adminUser = "admin";
   const adminEmail = "admin@example.com";
   const adminPassword = await bcrypt.hash("admin123", 10); // Contraseña encriptada
   const adminRole = "Administrador";
-
+  const firstName = "Super";
+  const lastName = "Admin";
+  const profilePicture = "default_admin.png"; // Imagen por defecto
+  const approved = 1; // Administrador aprobado por defecto
   db.serialize(() => {
     // Crear el usuario admin si no existe
     db.get(
-      "SELECT * FROM users WHERE user = ? OR email = ?",
+      "SELECT * FROM users WHERE username = ? OR email = ?",
       [adminUser, adminEmail],
       (err, user) => {
         if (err) {
           console.error("Error al verificar el administrador:", err.message);
         } else if (!user) {
           db.run(
-            "INSERT INTO users (user, email, password, role) VALUES (?, ?, ?, ?)",
-            [adminUser, adminEmail, adminPassword, adminRole],
+            `INSERT INTO users 
+            (username, email, password, role, firstName, lastName, photo, approved, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            [
+              adminUser,
+              adminEmail,
+              adminPassword,
+              adminRole,
+              firstName,
+              lastName,
+              profilePicture,
+              approved,
+            ],
             (err) => {
               if (err) {
                 console.error("Error al crear el administrador:", err.message);
@@ -314,6 +327,15 @@ app.get("/api/profiles", (req, res) => {
     if (err)
       return res.status(500).json({ error: "Error al obtener perfiles" });
 
+    res.json(rows);
+  });
+});
+
+// Obtener usuarios por perfil
+app.get("/api/profiles/:id/users", (req, res) => {
+  const profileId = req.params.id;
+  db.all("SELECT * FROM users WHERE role = ?", [profileId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
@@ -571,15 +593,35 @@ app.get("/api/students", (req, res) => {
 });
 
 app.get("/api/users", verifyRole("Administrador"), (req, res) => {
-  db.all(
-    "SELECT id, user, email, role, approved FROM users",
-    [],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: "Error al obtener los usuarios" });
-      } else {
-        res.json(rows);
-      }
+  db.all("SELECT id, username, email, role FROM users", [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: "Error al obtener los usuarios" });
+    } else {
+      res.json(rows);
+    }
+  });
+});
+
+// Crear un usuario
+app.post("/api/users", (req, res) => {
+  const {
+    firstName,
+    lastName,
+    username,
+    email,
+    password,
+    role,
+    grade,
+    area,
+    photo,
+  } = req.body;
+  db.run(
+    `INSERT INTO users (firstName, lastName, username, email, password, role, grade, area, photo) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [firstName, lastName, username, email, password, role, grade, area, photo],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID });
     }
   );
 });
