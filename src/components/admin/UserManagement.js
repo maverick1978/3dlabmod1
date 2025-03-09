@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import styles from "./UserManagement.module.css";
 
 function UserManagement() {
+  // Estados para almacenar la lista de usuarios, perfiles, y datos del formulario.
   const [users, setUsers] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  // editingUser guarda el ID del usuario que se está editando (si es nulo, se asume creación)
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
     user: "",
     email: "",
-    role: "Estudiante",
+    role: "", // Este campo se actualizará al seleccionar un perfil desde el dropdown
     password: "",
     firstName: "",
     lastName: "",
@@ -18,9 +21,12 @@ function UserManagement() {
   });
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
-  const [grades, setGrades] = useState(["Primero", "Segundo", "Tercero"]);
-  const [areas, setAreas] = useState(["Matemáticas", "Español", "Geografía"]);
 
+  // Estados para almacenar opciones fijas (pueden venir de un API en una app real)
+  const [grades] = useState(["Primero", "Segundo", "Tercero"]);
+  const [areas] = useState(["Matemáticas", "Español", "Geografía"]);
+
+  // useEffect para cargar los usuarios desde el backend cuando se monta el componente
   useEffect(() => {
     const fetchUsers = async () => {
       const token = localStorage.getItem("token");
@@ -30,16 +36,33 @@ function UserManagement() {
       const data = await response.json();
       setUsers(data);
     };
-
     fetchUsers();
   }, []);
 
+  // useEffect para cargar los perfiles desde el backend (endpoint /api/profiles)
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/profiles");
+        const data = await response.json();
+        // Aquí podrías filtrar perfiles que no quieras mostrar, por ejemplo:
+        // const filtered = data.filter(profile => profile.role !== "Administrador");
+        setProfiles(data);
+      } catch (error) {
+        console.error("Error al cargar perfiles:", error);
+      }
+    };
+    fetchProfiles();
+  }, []);
+
+  // Filtrado de usuarios según el texto de búsqueda
   const filteredUsers = users.filter(
     (user) =>
       user.user.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Función para cambiar el estado de aprobación de un usuario
   const handleApproveToggle = async (id, currentStatus) => {
     const token = localStorage.getItem("token");
     const newStatus = currentStatus === 1 ? 0 : 1;
@@ -57,6 +80,7 @@ function UserManagement() {
     );
 
     if (response.ok) {
+      // Actualizamos el estado de la lista de usuarios
       setUsers((prev) =>
         prev.map((user) =>
           user.id === id ? { ...user, approved: newStatus } : user
@@ -65,6 +89,7 @@ function UserManagement() {
     }
   };
 
+  // Manejo de cambios en los campos de texto del formulario
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -73,6 +98,7 @@ function UserManagement() {
     }));
   };
 
+  // Manejo del campo de tipo file para la foto del usuario
   const handleFileChange = (e) => {
     setFormData((prev) => ({
       ...prev,
@@ -80,52 +106,80 @@ function UserManagement() {
     }));
   };
 
+  // Al cambiar la selección del perfil en el dropdown se actualiza el formData
   const handleRoleChange = (e) => {
     const selectedRole = e.target.value;
     setFormData((prev) => ({
       ...prev,
       role: selectedRole,
+      // Reiniciamos campos específicos si cambió el rol
       grade: "",
       area: "",
     }));
   };
 
+  // Función para guardar un usuario (creación o actualización)
   const handleSave = async () => {
     const token = localStorage.getItem("token");
 
-    const userExists = users.some((u) => u.user === formData.user);
-    if (userExists) {
-      alert("El usuario ya existe");
-      return;
-    }
-
-    const response = await fetch(
-      `http://localhost:5000/api/users/${editingUser}`,
-      {
-        method: "PUT",
+    if (!editingUser) {
+      // Creación de un nuevo usuario
+      const userExists = users.some((u) => u.user === formData.user);
+      if (userExists) {
+        alert("El usuario ya existe");
+        return;
+      }
+      const response = await fetch(`http://localhost:5000/api/register`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        // Se envían los datos necesarios para el registro
+        body: JSON.stringify({
+          username: formData.user,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Agregamos el nuevo usuario a la lista y asumimos que el estado de aprobación es 0
+        setUsers((prev) => [
+          ...prev,
+          { id: data.userId, ...formData, approved: 0 },
+        ]);
       }
-    );
-
-    if (response.ok) {
-      setUsers((prev) =>
-        prev.map((user) =>
-          user.id === editingUser
-            ? { ...user, ...formData, password: undefined }
-            : user
-        )
+    } else {
+      // Actualización de un usuario existente
+      const response = await fetch(
+        `http://localhost:5000/api/users/${editingUser}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
       );
+      if (response.ok) {
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === editingUser
+              ? { ...user, ...formData, password: undefined }
+              : user
+          )
+        );
+      }
     }
-
+    // Reiniciamos el formulario y dejamos de editar
     setEditingUser(null);
     setFormData({
       user: "",
       email: "",
-      role: "Estudiante",
+      role: "",
       password: "",
       firstName: "",
       lastName: "",
@@ -135,16 +189,17 @@ function UserManagement() {
     });
   };
 
+  // Función para eliminar un usuario
   const handleDelete = async (id) => {
     const token = localStorage.getItem("token");
     await fetch(`http://localhost:5000/api/users/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-
     setUsers((prev) => prev.filter((user) => user.id !== id));
   };
 
+  // Función para iniciar el proceso de edición y precargar los datos del usuario
   const startEditing = (user) => {
     setEditingUser(user.id);
     setFormData({
@@ -156,6 +211,7 @@ function UserManagement() {
       lastName: user.lastName || "",
       grade: user.grade || "",
       area: user.area || "",
+      photo: null,
     });
   };
 
@@ -163,6 +219,7 @@ function UserManagement() {
     <div className={styles.container}>
       <h2>Gestión de Usuarios</h2>
 
+      {/* Campo para buscar usuarios */}
       <input
         type="text"
         placeholder="Buscar usuario..."
@@ -171,6 +228,7 @@ function UserManagement() {
         className={styles.searchBar}
       />
 
+      {/* Tabla de usuarios */}
       <table className={styles.table}>
         <thead>
           <tr>
@@ -234,14 +292,44 @@ function UserManagement() {
         </tbody>
       </table>
 
+      {/* Formulario para crear o editar usuario */}
       <div className={styles.editForm}>
-        <h3>Crear Usuario</h3>
+        <h3>{editingUser ? "Editar Usuario" : "Crear Usuario"}</h3>
         <form>
+          {/* Selección del perfil mediante una lista desplegable */}
           <label>Perfil:</label>
           <select name="role" value={formData.role} onChange={handleRoleChange}>
-            <option value="Estudiante">Estudiante</option>
-            <option value="Educador">Educador</option>
+            <option value="">Seleccione un perfil</option>
+            {profiles.map((profile) => (
+              <option key={profile.id} value={profile.role}>
+                {profile.role}
+              </option>
+            ))}
           </select>
+
+          <label>Nombre de Usuario:</label>
+          <input
+            type="text"
+            name="user"
+            value={formData.user}
+            onChange={handleInputChange}
+          />
+
+          <label>Email:</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+          />
+
+          <label>Contraseña:</label>
+          <input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleInputChange}
+          />
 
           <label>Nombre:</label>
           <input
@@ -259,6 +347,7 @@ function UserManagement() {
             onChange={handleInputChange}
           />
 
+          {/* Mostrar campos condicionales según el perfil seleccionado */}
           {formData.role === "Estudiante" && (
             <>
               <label>Grado:</label>
@@ -267,6 +356,7 @@ function UserManagement() {
                 value={formData.grade}
                 onChange={handleInputChange}
               >
+                <option value="">Seleccione grado</option>
                 {grades.map((g) => (
                   <option key={g} value={g}>
                     {g}
@@ -284,6 +374,7 @@ function UserManagement() {
                 value={formData.area}
                 onChange={handleInputChange}
               >
+                <option value="">Seleccione área</option>
                 {areas.map((a) => (
                   <option key={a} value={a}>
                     {a}
@@ -297,7 +388,7 @@ function UserManagement() {
           <input type="file" onChange={handleFileChange} />
 
           <button type="button" onClick={handleSave}>
-            Guardar Usuario
+            {editingUser ? "Guardar Cambios" : "Guardar Usuario"}
           </button>
         </form>
       </div>

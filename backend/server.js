@@ -24,7 +24,6 @@ app.use(bodyParser.json());
 // Middleware de roles
 const verifyRole = (requiredRole) => (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
-
   if (!token) {
     return res.status(401).json({ error: "Token no proporcionado" });
   }
@@ -72,20 +71,25 @@ const createTables = () => {
     }
   );
 
-  db.run(`
-     CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user TEXT NOT NULL UNIQUE,
-  email TEXT NOT NULL UNIQUE,
-  password TEXT NOT NULL,
-  role INTEGER NULL,
-  approved INTEGER DEFAULT 0,  -- Se separa de CHECK para evitar errores
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (role) REFERENCES profile(id) ON DELETE SET NULL
-);
-
-
-  `);
+  db.run(
+    `
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      role INTEGER NULL,
+      firstName TEXT,
+      lastName TEXT,
+      grade TEXT,
+      area TEXT,
+      photo TEXT,
+      approved INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (role) REFERENCES profile(id) ON DELETE SET NULL
+    )
+    `
+  );
 
   db.run(`
     CREATE TABLE IF NOT EXISTS students (
@@ -196,7 +200,18 @@ createTables();
 // Endpoint Registrar usuario
 // Modificar el registro de usuarios para usar perfiles de la tabla profile
 app.post("/api/register", async (req, res) => {
-  const { username, email, password, role } = req.body;
+  // Obtenemos todos los datos que se envían desde el frontend.
+  const {
+    username,
+    email,
+    password,
+    role,
+    firstName,
+    lastName,
+    grade,
+    area,
+    photo,
+  } = req.body;
 
   db.get("SELECT id FROM profile WHERE role = ?", [role], (err, row) => {
     if (err) return res.status(500).json({ error: "Error al buscar perfil" });
@@ -212,8 +227,21 @@ app.post("/api/register", async (req, res) => {
         return res.status(500).json({ error: "Error al encriptar contraseña" });
 
       db.run(
-        "INSERT INTO users (user, email, password, role, approved) VALUES (?, ?, ?, ?, 0)",
-        [username, email, hash, row.id],
+        `
+        INSERT INTO users (user, email, password, role, firstName, lastName, grade, area, photo, approved)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        `,
+        [
+          username,
+          email,
+          hash,
+          row.id,
+          firstName,
+          lastName,
+          grade,
+          area,
+          photo,
+        ],
         function (err) {
           if (err)
             return res
