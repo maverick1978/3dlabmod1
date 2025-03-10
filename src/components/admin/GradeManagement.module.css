@@ -1,0 +1,88 @@
+/* GradeManagement.module.css */
+
+.container {
+    margin: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+h3, h4 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.formGroup {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.inputField {
+    padding: 10px;
+    font-size: 16px;
+    width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    transition: border 0.3s ease;
+}
+
+.inputField:focus {
+    border-color: #3498db;
+}
+
+.actionButton {
+    padding: 10px 20px;
+    margin-left: 10px;
+    background-color: #3498db;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.actionButton:hover {
+    background-color: #2980b9;
+}
+
+.tableContainer {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.table th,
+.table td {
+    padding: 12px 15px;
+    border: 1px solid #e0e0e0;
+    text-align: left;
+}
+
+.table th {
+    background-color: #f7f7f7;
+    font-weight: 600;
+}
+
+.table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.deleteButton {
+    padding: 6px 12px;
+    background-color: #e74c3c;
+    border: none;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.deleteButton:hover {
+    background-color: #c0392b;
+}

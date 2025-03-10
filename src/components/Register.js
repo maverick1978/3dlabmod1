@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./Register.module.css";
 
 function Register() {
-  // Estado local para los campos del formulario
+  // Estado para los datos del formulario
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -10,11 +10,36 @@ function Register() {
     username: "",
     password: "",
     confirmPassword: "",
-    role: "Estudiante", // Por defecto "Estudiante"
-    grade: "Primero", // Por defecto "Primero"
+    role: "", // Inicialmente vacío, se asignará al cargar los perfiles
+    grade: "Primero", // Valor por defecto para grado
   });
 
-  // Maneja el cambio de valores en los inputs
+  // Estado para almacenar los perfiles que se cargan desde el backend
+  const [profiles, setProfiles] = useState([]);
+
+  // useEffect se ejecuta cuando se monta el componente y carga los perfiles desde el endpoint /api/profiles
+  useEffect(() => {
+    async function fetchProfiles() {
+      try {
+        const response = await fetch("http://localhost:5000/api/profiles");
+        const data = await response.json();
+        setProfiles(data);
+
+        // Establece el rol por defecto:
+        // Se busca el perfil "Estudiante" o se toma el primero de la lista si no existe
+        const defaultRole =
+          data.find((profile) => profile.role === "Estudiante") || data[0];
+        if (defaultRole) {
+          setFormData((prev) => ({ ...prev, role: defaultRole.role }));
+        }
+      } catch (error) {
+        console.error("Error al cargar los perfiles:", error);
+      }
+    }
+    fetchProfiles();
+  }, []);
+
+  // Función para manejar los cambios en los inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -23,7 +48,7 @@ function Register() {
     }));
   };
 
-  // Maneja el envío del formulario
+  // Función para manejar el envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -33,20 +58,19 @@ function Register() {
       return;
     }
 
-    try {
-      // Construimos el objeto que se enviará al servidor
-      const bodyToSend = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        username: formData.username,
-        password: formData.password,
-        role: formData.role,
-        grade: formData.grade,
-        // area: '',  // Si deseas manejar "area", podrías incluirlo aquí
-      };
+    // Construir el objeto que se enviará al servidor
+    const bodyToSend = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      username: formData.username,
+      password: formData.password,
+      role: formData.role, // Aquí se envía el nombre del perfil (por ejemplo, "Estudiante")
+      grade: formData.grade,
+      // area: "", // Puedes incluir más campos si es necesario
+    };
 
-      // Hacemos la petición POST al endpoint /api/register
+    try {
       const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         headers: {
@@ -54,18 +78,15 @@ function Register() {
         },
         body: JSON.stringify(bodyToSend),
       });
-
       const data = await response.json();
 
       if (response.ok) {
-        // Si el registro fue exitoso:
         alert(
           "Registro exitoso. Tu cuenta está pendiente de aprobación por el administrador."
         );
-        // Redirigir al login (o a donde gustes)
+        // Redirigir a la página de inicio o login
         window.location.href = "/";
       } else {
-        // Si hubo error, lo mostramos
         alert(data.error || "Error en el registro");
       }
     } catch (error) {
@@ -79,7 +100,7 @@ function Register() {
       <div className={styles.formWrapper}>
         <h2>Registro</h2>
         <form onSubmit={handleSubmit} className={styles.form}>
-          {/* Campo de Nombres */}
+          {/* Campo de Nombre */}
           <div className={styles.formGroup}>
             <label htmlFor="firstName">Nombre</label>
             <input
@@ -92,7 +113,7 @@ function Register() {
             />
           </div>
 
-          {/* Campo de Apellidos */}
+          {/* Campo de Apellido */}
           <div className={styles.formGroup}>
             <label htmlFor="lastName">Apellido</label>
             <input
@@ -157,7 +178,7 @@ function Register() {
             />
           </div>
 
-          {/* Campo de Rol */}
+          {/* Campo de Perfil */}
           <div className={styles.formGroup}>
             <label htmlFor="role">Perfil</label>
             <select
@@ -166,12 +187,15 @@ function Register() {
               value={formData.role}
               onChange={handleChange}
             >
-              <option value="Estudiante">Estudiante</option>
-              <option value="Educador">Educador</option>
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.role}>
+                  {profile.role}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* Campo de Grado (solo si el rol es Estudiante) */}
+          {/* Campo de Grado (solo se muestra si el perfil es "Estudiante") */}
           {formData.role === "Estudiante" && (
             <div className={styles.formGroup}>
               <label htmlFor="grade">Grado</label>
@@ -188,7 +212,7 @@ function Register() {
             </div>
           )}
 
-          {/* Botón para crear la cuenta */}
+          {/* Botón para enviar el formulario */}
           <button type="submit" className={styles.button}>
             Crear
           </button>

@@ -55,6 +55,22 @@ const db = new sqlite3.Database("./users.db", (err) => {
 const createTables = () => {
   db.run(
     `
+  CREATE TABLE IF NOT EXISTS grado (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE
+  )
+  `,
+    (err) => {
+      if (err) {
+        console.error("Error al crear la tabla grado:", err.message);
+      } else {
+        console.log("Tabla grado creada o ya existente.");
+      }
+    }
+  );
+
+  db.run(
+    `
         CREATE TABLE IF NOT EXISTS profile (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             role TEXT UNIQUE NOT NULL,
@@ -155,6 +171,88 @@ const createTables = () => {
     }
   );
 };
+
+/**************************************
+ *   Endpoints para gestionar grado   *
+ **************************************/
+
+// Obtener todos los grados, mostrando cuántos estudiantes tiene cada uno
+app.get("/api/grados", (req, res) => {
+  const query = `
+    SELECT g.id, g.nombre,
+           (SELECT COUNT(*) FROM users WHERE grade = g.nombre) AS numEstudiantes
+    FROM grado g
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al obtener los grados" });
+    }
+    res.json(rows); // rows contendrá { id, nombre, numEstudiantes }
+  });
+});
+
+// Crear un nuevo grado
+app.post("/api/grados", (req, res) => {
+  const { nombre } = req.body;
+  if (!nombre) {
+    return res.status(400).json({ error: "Falta el nombre del grado" });
+  }
+
+  // Insertar en la tabla grado
+  db.run("INSERT INTO grado (nombre) VALUES (?)", [nombre], function (err) {
+    if (err) {
+      return res.status(500).json({ error: "Error al crear el grado" });
+    }
+    res.json({ message: "Grado creado exitosamente", id: this.lastID });
+  });
+});
+
+// Eliminar un grado
+app.delete("/api/grados/:id", (req, res) => {
+  const { id } = req.params;
+
+  // 1. Obtenemos el nombre del grado por su ID
+  db.get("SELECT nombre FROM grado WHERE id = ?", [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al buscar el grado" });
+    }
+    if (!row) {
+      return res.status(404).json({ error: "Grado no encontrado" });
+    }
+
+    const nombreGrado = row.nombre;
+
+    // 2. Verificamos si hay estudiantes que usen ese grado en la tabla users
+    db.get(
+      "SELECT COUNT(*) AS count FROM users WHERE grade = ?",
+      [nombreGrado],
+      (err, result) => {
+        if (err) {
+          return res
+            .status(500)
+            .json({ error: "Error al verificar estudiantes del grado" });
+        }
+        // Si hay estudiantes, no se puede eliminar
+        if (result.count > 0) {
+          return res.status(400).json({
+            error:
+              "No se puede eliminar el grado porque tiene estudiantes asignados",
+          });
+        }
+
+        // 3. Si no hay estudiantes, procedemos a eliminar
+        db.run("DELETE FROM grado WHERE id = ?", [id], function (err) {
+          if (err) {
+            return res
+              .status(500)
+              .json({ error: "Error al eliminar el grado" });
+          }
+          res.json({ message: "Grado eliminado correctamente" });
+        });
+      }
+    );
+  });
+});
 
 // Configuramos cómo y dónde se guardarán las imágenes
 const storage = multer.diskStorage({
@@ -317,6 +415,20 @@ app.get("/api/profiles/:id/check-users", (req, res) => {
     }
   );
 });
+app.get("/api/profiles/:id", (req, res) => {
+  const { id } = req.params;
+  const query = "SELECT * FROM users WHERE id = ?";
+
+  db.get(query, [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al obtener el perfil" });
+    }
+    if (!row) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    res.json(row);
+  });
+});
 
 // Eliminar un perfil solo si no tiene usuarios asociados
 app.delete("/api/profiles/:id", (req, res) => {
@@ -461,6 +573,7 @@ app.post("/api/login", async (req, res) => {
       return res.status(200).json({
         message: "Inicio de sesión exitoso",
         token,
+        id: userRow.id, // Agrega el id del usuario
         user: userRow.user,
         role: userRow.role_name || userRow.role,
       });

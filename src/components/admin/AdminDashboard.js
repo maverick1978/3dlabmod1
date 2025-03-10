@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./AdminDashboard.module.css";
 import ProfileManagement from "./ProfileManagement";
 import UserManagement from "./UserManagement";
+import GradeManagement from "./GradeManagement";
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -94,14 +95,9 @@ function AdminDashboard() {
 
           {activeSection === "grades" && (
             <div>
-              <h3>Crear Grado</h3>
-              <div className={styles.formGroup}>
-                <input
-                  type="text"
-                  placeholder="Nombre del grado"
-                  className={styles.inputField}
-                />
-                <button className={styles.actionButton}>Crear</button>
+              <div>
+                {/* Secciones dinámicas */}
+                {activeSection === "grades" && <GradeManagement />}
               </div>
             </div>
           )}

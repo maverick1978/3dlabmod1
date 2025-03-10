@@ -1,17 +1,140 @@
+/* Contenedor principal: centra el contenido y define un ancho máximo */
 .container {
-    padding: 2rem;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+/* Título principal centrado */
+.title {
     text-align: center;
+    margin-bottom: 20px;
 }
 
-h2 {
-    color: #007bff;
-    margin-bottom: 1rem;
+/* Contenedor para las dos columnas */
+.twoColumns {
+    display: flex;
+    gap: 20px;
+    /* Espacio entre columnas */
 }
 
-p {
-    font-size: 1rem;
-    color: #555;
+/* Columna izquierda: se expande para ocupar el espacio restante */
+.leftColumn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Columna derecha: ancho fijo */
+.rightColumn {
+    width: 350px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: #fff;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+/* Sección de datos básicos (usuario, nombre, correo, área) */
+.dataSection p {
+    margin: 8px 0;
+    font-size: 16px;
+}
+
+/* Sección para cambio de clave */
+.changePassword {
+    background-color: #e8f4fd;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Estilos para los inputs */
+.input {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Botón general */
+.button {
+    background-color: #1976d2;
+    color: #fff;
+    border: none;
+    padding: 10px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* Sección de área de trabajo */
+.workArea {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Estilo para el select */
+.select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Contenedor para la foto (columna derecha) */
+.photoContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Estilo para la foto del educador */
+.photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #1976d2;
+}
+
+/* Marcador de posición para cuando no hay foto */
+.placeholderPhoto {
+    width: 150px;
+    height: 150px;
+    border: 2px dashed #aaa;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #aaa;
+}
+
+/* Sección de opciones de personalización */
+.customOptions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Mensajes de error y carga */
+.error {
+    text-align: center;
+    color: red;
+    font-size: 16px;
+    margin-top: 20px;
+}
+
+.loading {
+    text-align: center;
+    font-size: 16px;
+    margin-top: 20px;
 }

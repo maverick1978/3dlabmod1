@@ -30,7 +30,9 @@ function UserManagement() {
   const navigate = useNavigate();
 
   // Opciones fijas para grados y áreas
-  const [grades] = useState(["Primero", "Segundo", "Tercero"]);
+  //const [grades] = useState(["Primero", "Segundo", "Tercero"]);
+  const [availableGrades, setAvailableGrades] = useState([]);
+
   const [areas] = useState(["Matemáticas", "Español", "Geografía"]);
 
   // Cargar la lista de usuarios desde el backend cuando se monta el componente
@@ -58,6 +60,19 @@ function UserManagement() {
       }
     };
     fetchProfiles();
+  }, []);
+
+  useEffect(() => {
+    const fetchGrades = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/grados");
+        const data = await response.json();
+        setAvailableGrades(data);
+      } catch (error) {
+        console.error("Error al obtener los grados:", error);
+      }
+    };
+    fetchGrades();
   }, []);
 
   // Filtrar los usuarios según el texto en la barra de búsqueda
@@ -406,9 +421,9 @@ function UserManagement() {
                   onChange={handleInputChange}
                 >
                   <option value="">Seleccione grado</option>
-                  {grades.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
+                  {availableGrades.map((g) => (
+                    <option key={g.id} value={g.nombre}>
+                      {g.nombre}
                     </option>
                   ))}
                 </select>

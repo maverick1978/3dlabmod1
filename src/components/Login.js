@@ -3,31 +3,43 @@ import styles from "./Login.module.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser, faLock } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 
 function Login() {
+  // Estados para guardar el usuario y la contraseña ingresados en el formulario
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+  // Función que se ejecuta cuando el formulario se envía
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
+      // Realiza la petición al backend enviando el usuario y la contraseña
       const response = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user, password }),
       });
 
+      // Verificamos que la respuesta sea JSON
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error("Respuesta inesperada del servidor.");
       }
 
+      // Convertimos la respuesta a objeto JSON
       const data = await response.json();
 
+      // Si el inicio de sesión es exitoso, guardamos la información en localStorage
       if (response.ok) {
         localStorage.setItem("token", data.token);
+        // Guarda el id, user y role en localStorage usando la respuesta del servidor
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ id: data.id, user: data.user, role: data.role })
+        );
         alert("Inicio de sesión exitoso");
 
         // Redirigir según el rol del usuario
