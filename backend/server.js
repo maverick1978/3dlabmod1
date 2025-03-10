@@ -668,49 +668,96 @@ app.get("/api/users", verifyRole("Administrador"), (req, res) => {
   });
 });
 
-// Endpoint para actualizar un usuario (incluye actualización de foto si se envía)
+// Endpoint para actualizar un usuario (procesa tanto texto como archivo)
+// Solo se actualizan los campos que se envían; si algún campo se deja vacío, se conserva el valor actual
 app.put(
   "/api/users/:id",
   upload.single("photo"),
   verifyRole("Administrador"),
   (req, res) => {
     const { id } = req.params;
-    // Cuando se usa multer, los datos vienen en req.body y si se envía una foto, en req.file
-    const { user, email, role, password, firstName, lastName, grade, area } =
-      req.body;
-    // Si se envió un archivo, guardamos su nombre
-    const photoFileName = req.file ? req.file.filename : null;
 
-    // Comenzamos la construcción de la consulta UPDATE
-    let query = `
-    UPDATE users 
-    SET user = ?, email = ?, role = ?, firstName = ?, lastName = ?, grade = ?, area = ?
-  `;
-    const params = [user, email, role, firstName, lastName, grade, area];
-
-    // Solo actualizamos la contraseña si se envió una nueva
-    if (password && password.trim() !== "") {
-      query += ", password = ?";
-      params.push(bcrypt.hashSync(password, 10));
-    }
-
-    // Actualizamos la foto si se ha enviado una nueva
-    if (photoFileName) {
-      query += ", photo = ?";
-      params.push(photoFileName);
-    }
-
-    query += " WHERE id = ?";
-    params.push(id);
-
-    db.run(query, params, function (err) {
+    // Primero, obtenemos el usuario actual para saber sus valores existentes
+    db.get("SELECT * FROM users WHERE id = ?", [id], (err, currentUser) => {
       if (err) {
-        console.error("Error al actualizar usuario:", err);
+        console.error("Error al obtener usuario actual:", err);
         return res
           .status(500)
-          .json({ error: "Error al actualizar el usuario" });
+          .json({ error: "Error al obtener datos del usuario" });
       }
-      res.json({ message: "Usuario actualizado correctamente" });
+      if (!currentUser) {
+        return res.status(404).json({ error: "Usuario no encontrado" });
+      }
+
+      // Para cada campo, si se envía un valor (no vacío) lo usamos, de lo contrario se conserva el actual
+      const newUserVal =
+        req.body.user && req.body.user.trim() !== ""
+          ? req.body.user
+          : currentUser.user;
+      const newEmailVal =
+        req.body.email && req.body.email.trim() !== ""
+          ? req.body.email
+          : currentUser.email;
+      const newRoleVal =
+        req.body.role && req.body.role.trim() !== ""
+          ? req.body.role
+          : currentUser.role;
+      const newFirstName =
+        req.body.firstName && req.body.firstName.trim() !== ""
+          ? req.body.firstName
+          : currentUser.firstName;
+      const newLastName =
+        req.body.lastName && req.body.lastName.trim() !== ""
+          ? req.body.lastName
+          : currentUser.lastName;
+      const newGrade =
+        req.body.grade && req.body.grade.trim() !== ""
+          ? req.body.grade
+          : currentUser.grade;
+      const newArea =
+        req.body.area && req.body.area.trim() !== ""
+          ? req.body.area
+          : currentUser.area;
+
+      // Si se envía una nueva contraseña (no vacía), se encripta; si no, se conserva la actual
+      let newPassword;
+      if (req.body.password && req.body.password.trim() !== "") {
+        newPassword = bcrypt.hashSync(req.body.password, 10);
+      } else {
+        newPassword = currentUser.password;
+      }
+
+      // Si se envía una nueva foto, se usa; de lo contrario se conserva la existente
+      const newPhoto = req.file ? req.file.filename : currentUser.photo;
+
+      // Se construye la consulta UPDATE con todos los campos
+      const query = `
+      UPDATE users
+      SET user = ?, email = ?, password = ?, role = ?, firstName = ?, lastName = ?, grade = ?, area = ?, photo = ?
+      WHERE id = ?
+    `;
+      const params = [
+        newUserVal,
+        newEmailVal,
+        newPassword,
+        newRoleVal,
+        newFirstName,
+        newLastName,
+        newGrade,
+        newArea,
+        newPhoto,
+        id,
+      ];
+
+      db.run(query, params, function (err) {
+        if (err) {
+          console.error("Error al actualizar usuario:", err);
+          return res
+            .status(500)
+            .json({ error: "Error al actualizar el usuario" });
+        }
+        res.json({ message: "Usuario actualizado correctamente" });
+      });
     });
   }
 );

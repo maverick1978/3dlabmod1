@@ -136,13 +136,14 @@ function UserManagement() {
 
   // Función para guardar (crear o actualizar) usuario usando FormData
   const handleSave = async () => {
+    // Verificamos que las contraseñas coincidan
     if (formData.password !== formData.confirmPassword) {
       alert("Las contraseñas no coinciden");
       return;
     }
 
     const token = localStorage.getItem("token");
-    // Creamos un objeto FormData para enviar texto y archivos
+    // Creamos un objeto FormData para enviar datos y archivo
     const formDataToSend = new FormData();
     formDataToSend.append("username", formData.user);
     formDataToSend.append("email", formData.email);
@@ -156,25 +157,49 @@ function UserManagement() {
       formDataToSend.append("photo", formData.photo);
     }
 
-    // Enviar datos al endpoint de registro
-    const response = await fetch("http://localhost:5000/api/register", {
-      method: "POST",
-      // No agregamos Content-Type; el navegador lo configura automáticamente para FormData
-      headers: { Authorization: `Bearer ${token}` },
-      body: formDataToSend,
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      alert(data.message); // Muestra "Usuario registrado correctamente"
-      // Actualizamos la lista de usuarios con el nuevo usuario
-      setUsers((prev) => [
-        ...prev,
-        { id: data.userId, ...formData, approved: 0 },
-      ]);
+    // Si editingUser tiene un valor, estamos en modo edición
+    if (editingUser) {
+      // Actualización: usamos método PUT al endpoint /api/users/:id
+      const response = await fetch(
+        `http://localhost:5000/api/users/${editingUser}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formDataToSend,
+        }
+      );
+      if (response.ok) {
+        alert("Usuario actualizado correctamente");
+        // Actualizamos la lista de usuarios en el frontend
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === editingUser
+              ? { ...user, ...formData, password: undefined }
+              : user
+          )
+        );
+      } else {
+        const err = await response.json();
+        alert("Error: " + err.error);
+      }
     } else {
-      const err = await response.json();
-      alert("Error: " + err.error);
+      // Creación: se usa el endpoint POST para registrar un nuevo usuario
+      const response = await fetch("http://localhost:5000/api/register", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formDataToSend,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        alert(data.message);
+        setUsers((prev) => [
+          ...prev,
+          { id: data.userId, ...formData, approved: 0 },
+        ]);
+      } else {
+        const err = await response.json();
+        alert("Error: " + err.error);
+      }
     }
 
     // Reiniciamos el formulario
