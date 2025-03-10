@@ -3,30 +3,37 @@ import { useNavigate } from "react-router-dom";
 import styles from "./UserManagement.module.css";
 
 function UserManagement() {
-  // Estados para almacenar la lista de usuarios, perfiles, y datos del formulario.
+  // Estados para almacenar la lista de usuarios y perfiles (roles)
   const [users, setUsers] = useState([]);
   const [profiles, setProfiles] = useState([]);
-  // editingUser guarda el ID del usuario que se está editando (si es nulo, se asume creación)
+
+  // Estado para saber cuál usuario se está editando (si es null, es nuevo)
   const [editingUser, setEditingUser] = useState(null);
+
+  // Estado para los datos del formulario, incluyendo la vista previa de la foto
   const [formData, setFormData] = useState({
-    user: "",
-    email: "",
-    role: "", // Este campo se actualizará al seleccionar un perfil desde el dropdown
-    password: "",
+    role: "",
     firstName: "",
     lastName: "",
+    user: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
     grade: "",
     area: "",
     photo: null,
+    photoPreview: "", // Contendrá la URL de la foto actual o la nueva vista previa
   });
+
+  // Estado para el campo de búsqueda y para navegar
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
-  // Estados para almacenar opciones fijas (pueden venir de un API en una app real)
+  // Opciones fijas para grados y áreas
   const [grades] = useState(["Primero", "Segundo", "Tercero"]);
   const [areas] = useState(["Matemáticas", "Español", "Geografía"]);
 
-  // useEffect para cargar los usuarios desde el backend cuando se monta el componente
+  // Cargar la lista de usuarios desde el backend cuando se monta el componente
   useEffect(() => {
     const fetchUsers = async () => {
       const token = localStorage.getItem("token");
@@ -39,14 +46,12 @@ function UserManagement() {
     fetchUsers();
   }, []);
 
-  // useEffect para cargar los perfiles desde el backend (endpoint /api/profiles)
+  // Cargar los perfiles (roles) desde el backend
   useEffect(() => {
     const fetchProfiles = async () => {
       try {
         const response = await fetch("http://localhost:5000/api/profiles");
         const data = await response.json();
-        // Aquí podrías filtrar perfiles que no quieras mostrar, por ejemplo:
-        // const filtered = data.filter(profile => profile.role !== "Administrador");
         setProfiles(data);
       } catch (error) {
         console.error("Error al cargar perfiles:", error);
@@ -55,11 +60,11 @@ function UserManagement() {
     fetchProfiles();
   }, []);
 
-  // Filtrado de usuarios según el texto de búsqueda
+  // Filtrar los usuarios según el texto en la barra de búsqueda
   const filteredUsers = users.filter(
-    (user) =>
-      user.user.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase())
+    (u) =>
+      u.user.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase())
   );
 
   // Función para cambiar el estado de aprobación de un usuario
@@ -80,7 +85,6 @@ function UserManagement() {
     );
 
     if (response.ok) {
-      // Actualizamos el estado de la lista de usuarios
       setUsers((prev) =>
         prev.map((user) =>
           user.id === id ? { ...user, approved: newStatus } : user
@@ -89,7 +93,7 @@ function UserManagement() {
     }
   };
 
-  // Manejo de cambios en los campos de texto del formulario
+  // Actualiza el estado del formulario cuando se cambian los inputs de texto
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -98,94 +102,95 @@ function UserManagement() {
     }));
   };
 
-  // Manejo del campo de tipo file para la foto del usuario
+  // Manejo de la subida de archivo (foto)
   const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Guardamos el archivo en el estado
     setFormData((prev) => ({
       ...prev,
-      photo: e.target.files[0],
+      photo: file,
     }));
+
+    // Creamos una vista previa de la imagen usando FileReader
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({
+        ...prev,
+        photoPreview: reader.result, // Esta es la imagen en base64 para vista previa
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
-  // Al cambiar la selección del perfil en el dropdown se actualiza el formData
+  // Manejo de la selección de perfil desde el dropdown
   const handleRoleChange = (e) => {
     const selectedRole = e.target.value;
     setFormData((prev) => ({
       ...prev,
       role: selectedRole,
-      // Reiniciamos campos específicos si cambió el rol
       grade: "",
       area: "",
     }));
   };
 
-  // Función para guardar un usuario (creación o actualización)
+  // Función para guardar (crear o actualizar) usuario usando FormData
   const handleSave = async () => {
-    const token = localStorage.getItem("token");
-
-    if (!editingUser) {
-      // Creación de un nuevo usuario
-      const userExists = users.some((u) => u.user === formData.user);
-      if (userExists) {
-        alert("El usuario ya existe");
-        return;
-      }
-      const response = await fetch(`http://localhost:5000/api/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        // Se envían los datos necesarios para el registro
-        body: JSON.stringify({
-          username: formData.user,
-          email: formData.email,
-          password: formData.password,
-          role: formData.role,
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Agregamos el nuevo usuario a la lista y asumimos que el estado de aprobación es 0
-        setUsers((prev) => [
-          ...prev,
-          { id: data.userId, ...formData, approved: 0 },
-        ]);
-      }
-    } else {
-      // Actualización de un usuario existente
-      const response = await fetch(
-        `http://localhost:5000/api/users/${editingUser}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-      if (response.ok) {
-        setUsers((prev) =>
-          prev.map((user) =>
-            user.id === editingUser
-              ? { ...user, ...formData, password: undefined }
-              : user
-          )
-        );
-      }
+    if (formData.password !== formData.confirmPassword) {
+      alert("Las contraseñas no coinciden");
+      return;
     }
-    // Reiniciamos el formulario y dejamos de editar
+
+    const token = localStorage.getItem("token");
+    // Creamos un objeto FormData para enviar texto y archivos
+    const formDataToSend = new FormData();
+    formDataToSend.append("username", formData.user);
+    formDataToSend.append("email", formData.email);
+    formDataToSend.append("password", formData.password);
+    formDataToSend.append("role", formData.role);
+    formDataToSend.append("firstName", formData.firstName);
+    formDataToSend.append("lastName", formData.lastName);
+    formDataToSend.append("grade", formData.grade);
+    formDataToSend.append("area", formData.area);
+    if (formData.photo) {
+      formDataToSend.append("photo", formData.photo);
+    }
+
+    // Enviar datos al endpoint de registro
+    const response = await fetch("http://localhost:5000/api/register", {
+      method: "POST",
+      // No agregamos Content-Type; el navegador lo configura automáticamente para FormData
+      headers: { Authorization: `Bearer ${token}` },
+      body: formDataToSend,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      alert(data.message); // Muestra "Usuario registrado correctamente"
+      // Actualizamos la lista de usuarios con el nuevo usuario
+      setUsers((prev) => [
+        ...prev,
+        { id: data.userId, ...formData, approved: 0 },
+      ]);
+    } else {
+      const err = await response.json();
+      alert("Error: " + err.error);
+    }
+
+    // Reiniciamos el formulario
     setEditingUser(null);
     setFormData({
-      user: "",
-      email: "",
       role: "",
-      password: "",
       firstName: "",
       lastName: "",
+      user: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
       grade: "",
       area: "",
       photo: null,
+      photoPreview: "",
     });
   };
 
@@ -196,22 +201,28 @@ function UserManagement() {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
-    setUsers((prev) => prev.filter((user) => user.id !== id));
+    setUsers((prev) => prev.filter((u) => u.id !== id));
   };
 
-  // Función para iniciar el proceso de edición y precargar los datos del usuario
+  // Función para iniciar la edición: carga todos los datos del usuario seleccionado
   const startEditing = (user) => {
     setEditingUser(user.id);
+    // Actualizamos el formulario con los datos actuales del usuario
     setFormData({
-      user: user.user,
-      email: user.email,
       role: user.role,
-      password: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
+      user: user.user,
+      email: user.email,
+      password: "",
+      confirmPassword: "",
       grade: user.grade || "",
       area: user.area || "",
-      photo: null,
+      photo: null, // No asignamos la foto aquí, se usa si se selecciona una nueva
+      // Construimos la URL de la foto para mostrarla en la vista previa
+      photoPreview: user.photo
+        ? `http://localhost:5000/uploads/${user.photo}`
+        : "",
     });
   };
 
@@ -219,7 +230,7 @@ function UserManagement() {
     <div className={styles.container}>
       <h2>Gestión de Usuarios</h2>
 
-      {/* Campo para buscar usuarios */}
+      {/* Barra de búsqueda */}
       <input
         type="text"
         placeholder="Buscar usuario..."
@@ -240,25 +251,25 @@ function UserManagement() {
           </tr>
         </thead>
         <tbody>
-          {filteredUsers.map((user) => (
-            <tr key={user.id}>
-              <td>{user.user}</td>
-              <td>{user.email}</td>
-              <td>{user.role}</td>
+          {filteredUsers.map((u) => (
+            <tr key={u.id}>
+              <td>{u.user}</td>
+              <td>{u.email}</td>
+              <td>{u.role}</td>
               <td>
                 <button
-                  onClick={() => handleApproveToggle(user.id, user.approved)}
+                  onClick={() => handleApproveToggle(u.id, u.approved)}
                   className={
-                    user.approved === 1
+                    u.approved === 1
                       ? styles.disapproveButton
                       : styles.approveButton
                   }
                 >
-                  {user.approved === 1 ? "Desaprobar" : "Aprobar"}
+                  {u.approved === 1 ? "Desaprobar" : "Aprobar"}
                 </button>
               </td>
               <td>
-                {editingUser === user.id ? (
+                {editingUser === u.id ? (
                   <>
                     <button onClick={handleSave} className={styles.saveButton}>
                       Guardar
@@ -273,13 +284,13 @@ function UserManagement() {
                 ) : (
                   <>
                     <button
-                      onClick={() => startEditing(user)}
+                      onClick={() => startEditing(u)}
                       className={styles.editButton}
                     >
                       Editar
                     </button>
                     <button
-                      onClick={() => handleDelete(user.id)}
+                      onClick={() => handleDelete(u.id)}
                       className={styles.deleteButton}
                     >
                       Eliminar
@@ -292,105 +303,144 @@ function UserManagement() {
         </tbody>
       </table>
 
-      {/* Formulario para crear o editar usuario */}
-      <div className={styles.editForm}>
+      {/* Formulario organizado en dos columnas */}
+      <div className={styles.formContainer}>
         <h3>{editingUser ? "Editar Usuario" : "Crear Usuario"}</h3>
-        <form>
-          {/* Selección del perfil mediante una lista desplegable */}
-          <label>Perfil:</label>
-          <select name="role" value={formData.role} onChange={handleRoleChange}>
-            <option value="">Seleccione un perfil</option>
-            {profiles.map((profile) => (
-              <option key={profile.id} value={profile.role}>
-                {profile.role}
-              </option>
-            ))}
-          </select>
 
-          <label>Nombre de Usuario:</label>
-          <input
-            type="text"
-            name="user"
-            value={formData.user}
-            onChange={handleInputChange}
-          />
+        <div className={styles.columns}>
+          {/* Columna Izquierda */}
+          <div className={styles.leftColumn}>
+            <label>Perfil:</label>
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleRoleChange}
+            >
+              <option value="">Seleccione un perfil</option>
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.role}>
+                  {profile.role}
+                </option>
+              ))}
+            </select>
 
-          <label>Email:</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleInputChange}
-          />
+            <label>Nombre:</label>
+            <input
+              type="text"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleInputChange}
+            />
 
-          <label>Contraseña:</label>
-          <input
-            type="password"
-            name="password"
-            value={formData.password}
-            onChange={handleInputChange}
-          />
+            <label>Apellido:</label>
+            <input
+              type="text"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleInputChange}
+            />
 
-          <label>Nombre:</label>
-          <input
-            type="text"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleInputChange}
-          />
+            <label>Usuario:</label>
+            <input
+              type="text"
+              name="user"
+              value={formData.user}
+              onChange={handleInputChange}
+            />
 
-          <label>Apellido:</label>
-          <input
-            type="text"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleInputChange}
-          />
+            <label>Correo:</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+            />
 
-          {/* Mostrar campos condicionales según el perfil seleccionado */}
-          {formData.role === "Estudiante" && (
-            <>
-              <label>Grado:</label>
-              <select
-                name="grade"
-                value={formData.grade}
-                onChange={handleInputChange}
-              >
-                <option value="">Seleccione grado</option>
-                {grades.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
+            <label>Cambio de clav:</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+            />
 
-          {formData.role === "Educador" && (
-            <>
-              <label>Área:</label>
-              <select
-                name="area"
-                value={formData.area}
-                onChange={handleInputChange}
-              >
-                <option value="">Seleccione área</option>
-                {areas.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
+            <label>Repite clav:</label>
+            <input
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+            />
 
-          <label>Foto:</label>
-          <input type="file" onChange={handleFileChange} />
+            {formData.role === "Estudiante" && (
+              <>
+                <label>Grado:</label>
+                <select
+                  name="grade"
+                  value={formData.grade}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Seleccione grado</option>
+                  {grades.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
 
-          <button type="button" onClick={handleSave}>
-            {editingUser ? "Guardar Cambios" : "Guardar Usuario"}
-          </button>
-        </form>
+            {formData.role === "Educador" && (
+              <>
+                <label>Áreas:</label>
+                <select
+                  name="area"
+                  value={formData.area}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Seleccione área</option>
+                  {areas.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
+
+          {/* Columna Derecha */}
+          <div className={styles.rightColumn}>
+            <label>Cargar Fotografía:</label>
+            {formData.photoPreview ? (
+              <img
+                src={formData.photoPreview}
+                alt="Vista previa"
+                className={styles.photoPreview}
+              />
+            ) : (
+              <div className={styles.photoPlaceholder}>
+                (Sin foto seleccionada)
+              </div>
+            )}
+            <input type="file" onChange={handleFileChange} />
+
+            <button type="button" className={styles.actionButton}>
+              Cambiar Fondo
+            </button>
+            <button type="button" className={styles.actionButton}>
+              Mi frase inspiradora
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              className={styles.saveButtonMain}
+            >
+              {editingUser ? "Guardar Cambios" : "Guardar"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

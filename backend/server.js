@@ -20,6 +20,7 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+const multer = require("multer");
 
 // Middleware de roles
 const verifyRole = (requiredRole) => (req, res, next) => {
@@ -73,22 +74,21 @@ const createTables = () => {
 
   db.run(
     `
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user TEXT NOT NULL UNIQUE,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      role INTEGER NULL,
-      firstName TEXT,
-      lastName TEXT,
-      grade TEXT,
-      area TEXT,
-      photo TEXT,
-      approved INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (role) REFERENCES profile(id) ON DELETE SET NULL
-    )
-    `
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    role TEXT,  -- Cambio: ahora es TEXT para guardar el nombre del perfil
+    firstName TEXT,
+    lastName TEXT,
+    grade TEXT,
+    area TEXT,
+    photo TEXT,
+    approved INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+  `
   );
 
   db.run(`
@@ -155,6 +155,23 @@ const createTables = () => {
     }
   );
 };
+
+// Configuramos cómo y dónde se guardarán las imágenes
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Guardaremos las imágenes en la carpeta "uploads"
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    // Creamos un nombre único para evitar que se sobrescriban archivos
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
+app.use("/uploads", express.static("uploads"));
+
+// Creamos la función "upload" que usaremos en nuestro endpoint
+const upload = multer({ storage: storage });
 // Seed inicial para notificaciones y creación del admin
 const seedNotifications = async () => {
   const query = `INSERT INTO notifications (title, detail, read, TYPE) VALUES (?, ?, ?, ?)`;
@@ -199,63 +216,88 @@ const seedNotifications = async () => {
 createTables();
 // Endpoint Registrar usuario
 // Modificar el registro de usuarios para usar perfiles de la tabla profile
-app.post("/api/register", async (req, res) => {
-  // Obtenemos todos los datos que se envían desde el frontend.
-  const {
-    username,
-    email,
-    password,
-    role,
-    firstName,
-    lastName,
-    grade,
-    area,
-    photo,
-  } = req.body;
+app.post("/api/register", upload.single("photo"), async (req, res) => {
+  try {
+    console.log("Datos recibidos (req.body):", req.body);
+    console.log("Archivo recibido (req.file):", req.file);
 
-  db.get("SELECT id FROM profile WHERE role = ?", [role], (err, row) => {
-    if (err) return res.status(500).json({ error: "Error al buscar perfil" });
+    // Extraemos los campos del formulario
+    const {
+      username,
+      email,
+      password,
+      role,
+      firstName,
+      lastName,
+      grade,
+      area,
+    } = req.body;
+    // Si se envió una foto, guardamos su nombre; de lo contrario, null
+    const photoFileName = req.file ? req.file.filename : null;
 
-    if (!row) {
-      return res
-        .status(400)
-        .json({ error: "El perfil seleccionado no existe" });
+    // Validamos que los datos obligatorios estén presentes
+    if (!username || !email || !password || !role) {
+      return res.status(400).json({ error: "Faltan datos obligatorios" });
     }
 
-    bcrypt.hash(password, 10, (err, hash) => {
-      if (err)
-        return res.status(500).json({ error: "Error al encriptar contraseña" });
+    // Verificamos que el rol exista en la tabla "profile" (se consulta por el nombre)
+    db.get("SELECT role FROM profile WHERE role = ?", [role], (err, row) => {
+      if (err) {
+        console.error("Error al buscar perfil:", err);
+        return res.status(500).json({ error: "Error al buscar perfil" });
+      }
+      if (!row) {
+        return res
+          .status(400)
+          .json({ error: "El perfil seleccionado no existe" });
+      }
 
-      db.run(
-        `
-        INSERT INTO users (user, email, password, role, firstName, lastName, grade, area, photo, approved)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-        `,
-        [
-          username,
-          email,
-          hash,
-          row.id,
-          firstName,
-          lastName,
-          grade,
-          area,
-          photo,
-        ],
-        function (err) {
-          if (err)
-            return res
-              .status(500)
-              .json({ error: "Error al registrar usuario" });
-
-          res.status(201).json({
-            message: "Usuario registrado correctamente",
-            userId: this.lastID,
-          });
+      // Encriptamos la contraseña
+      bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+          console.error("Error al encriptar contraseña:", err);
+          return res
+            .status(500)
+            .json({ error: "Error al encriptar contraseña" });
         }
-      );
+
+        // Insertamos todos los datos en la tabla "users"
+        db.run(
+          `
+          INSERT INTO users (user, email, password, role, firstName, lastName, grade, area, photo, approved)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+          `,
+          [
+            username,
+            email,
+            hash,
+            role,
+            firstName,
+            lastName,
+            grade,
+            area,
+            photoFileName,
+          ],
+          function (err) {
+            if (err) {
+              console.error("Error al insertar en la BD:", err);
+              return res
+                .status(500)
+                .json({ error: "Error al registrar usuario" });
+            }
+            // Responde con un mensaje de confirmación y el ID del usuario creado
+            res.status(201).json({
+              message: "Usuario registrado correctamente",
+              userId: this.lastID,
+            });
+          }
+        );
+      });
     });
-  });
+  } catch (error) {
+    console.error("Error en /api/register:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
 });
 
 /// Verificar si un perfil tiene usuarios antes de eliminarlo
@@ -599,42 +641,79 @@ app.get("/api/students", (req, res) => {
 });
 
 app.get("/api/users", verifyRole("Administrador"), (req, res) => {
-  db.all(
-    "SELECT id, user, email, role, approved FROM users",
-    [],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: "Error al obtener los usuarios" });
-      } else {
-        res.json(rows);
-      }
-    }
-  );
-});
-
-app.put("/api/users/:id", verifyRole("Administrador"), (req, res) => {
-  const { id } = req.params;
-  const { user, email, role, password } = req.body;
-
-  let query = "UPDATE users SET user = ?, email = ?, role = ?";
-  const params = [user, email, role, id];
-
-  // Si se proporciona una nueva contraseña, incluirla en la consulta
-  if (password) {
-    query += ", password = ?";
-    params.splice(3, 0, bcrypt.hashSync(password, 10)); // Inserta la contraseña encriptada
-  }
-
-  query += " WHERE id = ?";
-
-  db.run(query, params, function (err) {
+  // Se realiza un LEFT JOIN entre la tabla "users" y "profile"
+  // para obtener el nombre del perfil (profile.role) en lugar del ID.
+  const query = `
+    SELECT 
+      users.id, 
+      users.user, 
+      users.email, 
+      profile.role AS role, 
+      users.approved,
+      users.firstName,
+      users.lastName,
+      users.grade,
+      users.area,
+      users.photo,
+      users.created_at
+    FROM users
+    LEFT JOIN profile ON users.role = profile.role
+  `;
+  db.all(query, [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: "Error al actualizar el usuario" });
-    } else {
-      res.json({ message: "Usuario actualizado correctamente" });
+      console.error("Error al obtener los usuarios:", err);
+      return res.status(500).json({ error: "Error al obtener los usuarios" });
     }
+    res.json(rows);
   });
 });
+
+// Endpoint para actualizar un usuario (incluye actualización de foto si se envía)
+app.put(
+  "/api/users/:id",
+  upload.single("photo"),
+  verifyRole("Administrador"),
+  (req, res) => {
+    const { id } = req.params;
+    // Cuando se usa multer, los datos vienen en req.body y si se envía una foto, en req.file
+    const { user, email, role, password, firstName, lastName, grade, area } =
+      req.body;
+    // Si se envió un archivo, guardamos su nombre
+    const photoFileName = req.file ? req.file.filename : null;
+
+    // Comenzamos la construcción de la consulta UPDATE
+    let query = `
+    UPDATE users 
+    SET user = ?, email = ?, role = ?, firstName = ?, lastName = ?, grade = ?, area = ?
+  `;
+    const params = [user, email, role, firstName, lastName, grade, area];
+
+    // Solo actualizamos la contraseña si se envió una nueva
+    if (password && password.trim() !== "") {
+      query += ", password = ?";
+      params.push(bcrypt.hashSync(password, 10));
+    }
+
+    // Actualizamos la foto si se ha enviado una nueva
+    if (photoFileName) {
+      query += ", photo = ?";
+      params.push(photoFileName);
+    }
+
+    query += " WHERE id = ?";
+    params.push(id);
+
+    db.run(query, params, function (err) {
+      if (err) {
+        console.error("Error al actualizar usuario:", err);
+        return res
+          .status(500)
+          .json({ error: "Error al actualizar el usuario" });
+      }
+      res.json({ message: "Usuario actualizado correctamente" });
+    });
+  }
+);
 
 app.delete("/api/users/:id", verifyRole("Administrador"), (req, res) => {
   const { id } = req.params;
